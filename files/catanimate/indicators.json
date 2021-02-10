@@ -1,0 +1,26 @@
+[
+  {
+    "database_indicator": "NPP",
+    "file_pattern": "NPP*.ti*",
+    "graph_units": "Ktc",
+    "palette": "Greens"
+  },
+  {
+    "database_indicator": "NBP",
+    "file_pattern": "NBP*.ti*",
+    "palette": "Greens",
+    "negative_palette": "Reds"
+  },
+  {
+    "database_indicator": "NEP",
+    "file_pattern": "NEP*.ti*",
+    "palette": "Reds"
+  },
+  {
+    "title": "AG Biomass",
+    "database_indicator": "Aboveground Biomass",
+    "file_pattern": "AG_Biomass_C_*.ti*",
+    "palette": "YlGnBu",
+    "graph_units": "Mtc"
+  }
+]

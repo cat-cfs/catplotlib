@@ -1,0 +1,46 @@
+[
+  {
+    "title": "Classifier2 - Auto Palette",
+    "file_pattern": ["Classifier2*.ti*", "Blank"],
+    "map_units": "Blank",
+    "interpretation": {
+        "5": "Badgers",
+        "6": "Pandas",
+        "7": "Wolverines",
+        "8": "Flamingos"
+    }
+  },
+  {
+    "title": "Classifier2 - Specific Palette",
+    "file_pattern": ["Classifier2*.ti*", "Blank"],
+    "map_units": "Blank",
+    "interpretation": {
+        "5": "Badgers",
+        "6": "Pandas",
+        "7": "Wolverines",
+        "8": "Flamingos"
+    },
+    "palette": "YlGnBu"
+  },
+  {
+    "title": "Classifier2 - User Palette",
+    "file_pattern": ["Classifier2*.ti*", "Blank"],
+    "map_units": "Blank",
+    "interpretation": {
+        "5": "Badgers",
+        "6": "Pandas",
+        "7": "Wolverines",
+        "8": "Flamingos"
+    },
+    "colors": [
+        {
+            "values": ["Badgers"],
+            "palette": ["red"]
+        },
+        {
+            "values": ["Pandas", "Wolverines", "Flamingos"],
+            "palette": "Blues"
+        }
+    ]
+  }
+]

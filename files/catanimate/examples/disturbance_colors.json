@@ -1,0 +1,13 @@
+[
+    {
+        "disturbance_types": ["Wildfire"],
+        "palette": "Reds_d"
+    },
+    {
+        "disturbance_types": [
+            "Mountain pine beetle — Very severe impact",
+            "Mountain pine beetle — Low impact"
+        ],
+        "palette": "Blues_d"
+    }
+]

@@ -1,0 +1,6 @@
+- file: 01_report
+
+- part: Indicators
+  chapters:
+  - file: 02_stocks
+  - file: 03_fluxes

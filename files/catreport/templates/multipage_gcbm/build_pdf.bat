@@ -1,0 +1,1 @@
+jb clean . && jb build . --builder pdfhtml

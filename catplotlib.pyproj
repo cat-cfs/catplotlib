@@ -1,0 +1,173 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>0a6e5677-a758-48dc-bb62-057069ac0ab3</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>
+    </StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>gcbmanimation</Name>
+    <RootNamespace>gcbmanimation</RootNamespace>
+    <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="catplotlib\animator\animator.py" />
+    <Compile Include="catplotlib\reporting\plot\basic.py" />
+    <Compile Include="catplotlib\reporting\plot\__init__.py" />
+    <Compile Include="catplotlib\reporting\provider\stylingresultsprovider.py" />
+    <Compile Include="catplotlib\reporting\provider\__init__.py" />
+    <Compile Include="catplotlib\reporting\style\dashes.py" />
+    <Compile Include="catplotlib\reporting\style\palette.py" />
+    <Compile Include="catplotlib\reporting\style\stylemanager.py" />
+    <Compile Include="catplotlib\reporting\style\symbols.py" />
+    <Compile Include="catplotlib\reporting\style\__init__.py" />
+    <Compile Include="catplotlib\util\loopingiterator.py" />
+    <Compile Include="catplotlib\reporting\util\templatehelper.py" />
+    <Compile Include="catplotlib\reporting\util\__init__.py" />
+    <Compile Include="catplotlib\reporting\__init__.py" />
+    <Compile Include="catplotlib\spatial\display\frame.py" />
+    <Compile Include="catplotlib\animator\color\customcolorizer.py" />
+    <Compile Include="catplotlib\animator\color\__init__.py" />
+    <Compile Include="catplotlib\animator\indicator\compositeindicator.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\indicator\indicator.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\layout\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\legend.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\layout\quadrantlayout.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\util\disturbancelayerconfigurer.py" />
+    <Compile Include="catplotlib\animator\util\__init__.py" />
+    <Compile Include="catplotlib\animator\__init__.py" />
+    <Compile Include="catplotlib\animator\indicator\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\color\colorizer.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\color\quantilecolorizer.py" />
+    <Compile Include="catplotlib\provider\units.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\plot\basicresultsplot.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\plot\resultsplot.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\animator\plot\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\provider\resultsprovider.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\provider\spatialgcbmresultsprovider.py" />
+    <Compile Include="catplotlib\provider\sqlitegcbmresultsprovider.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\provider\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\scripts\catreport.py" />
+    <Compile Include="catplotlib\scripts\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\spatial\display\raster.py" />
+    <Compile Include="catplotlib\spatial\display\__init__.py" />
+    <Compile Include="catplotlib\util\config.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\util\utmzones.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="catplotlib\scripts\catanimate.py" />
+    <Compile Include="catplotlib\spatial\boundingbox.py" />
+    <Compile Include="catplotlib\spatial\layer.py" />
+    <Compile Include="catplotlib\spatial\layercollection.py" />
+    <Compile Include="catplotlib\spatial\__init__.py" />
+    <Compile Include="catplotlib\util\tempfile.py" />
+    <Compile Include="catplotlib\util\__init__.py" />
+    <Compile Include="catplotlib\__main__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="files\catanimate\examples\create_bc_animation.py" />
+    <Compile Include="files\catanimate\examples\tester.py" />
+    <Compile Include="setup.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="catplotlib\" />
+    <Folder Include="catplotlib\animator\" />
+    <Folder Include="catplotlib\animator\layout\" />
+    <Folder Include="catplotlib\animator\indicator\" />
+    <Folder Include="catplotlib\animator\color\" />
+    <Folder Include="catplotlib\animator\util\" />
+    <Folder Include="catplotlib\reporting\" />
+    <Folder Include="catplotlib\reporting\plot\" />
+    <Folder Include="catplotlib\reporting\provider\" />
+    <Folder Include="catplotlib\reporting\style\" />
+    <Folder Include="catplotlib\reporting\util\" />
+    <Folder Include="catplotlib\spatial\" />
+    <Folder Include="catplotlib\animator\plot\" />
+    <Folder Include="catplotlib\provider\" />
+    <Folder Include="catplotlib\scripts\" />
+    <Folder Include="catplotlib\spatial\display\" />
+    <Folder Include="catplotlib\util\" />
+    <Folder Include="files\" />
+    <Folder Include="files\catanimate\" />
+    <Folder Include="files\catanimate\examples\" />
+    <Folder Include="files\catreport\" />
+    <Folder Include="files\catreport\templates\" />
+    <Folder Include="files\catreport\templates\basic_gcbm\" />
+    <Folder Include="files\catreport\templates\multipage_gcbm\" />
+    <Folder Include="files\catreport\templates\tabbed_gcbm\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="files\catanimate\examples\disturbance_colors.json" />
+    <Content Include="files\catanimate\examples\interpreted_indicators.json" />
+    <Content Include="files\catanimate\indicators.json" />
+    <Content Include="files\catreport\templates\basic_gcbm\build_html.bat" />
+    <Content Include="files\catreport\templates\basic_gcbm\build_pdf.bat" />
+    <Content Include="files\catreport\templates\basic_gcbm\report.md" />
+    <Content Include="files\catreport\templates\basic_gcbm\_config.yml" />
+    <Content Include="files\catreport\templates\basic_gcbm\_toc.yml" />
+    <Content Include="files\catreport\templates\multipage_gcbm\build_html.bat" />
+    <Content Include="files\catreport\templates\multipage_gcbm\build_pdf.bat" />
+    <Content Include="files\catreport\templates\multipage_gcbm\03_fluxes.md" />
+    <Content Include="files\catreport\templates\multipage_gcbm\01_report.md" />
+    <Content Include="files\catreport\templates\multipage_gcbm\02_stocks.md" />
+    <Content Include="files\catreport\templates\multipage_gcbm\_config.yml" />
+    <Content Include="files\catreport\templates\multipage_gcbm\_toc.yml" />
+    <Content Include="files\catreport\templates\tabbed_gcbm\build_html.bat" />
+    <Content Include="files\catreport\templates\tabbed_gcbm\report.md" />
+    <Content Include="files\catreport\templates\tabbed_gcbm\_config.yml" />
+    <Content Include="files\catreport\templates\tabbed_gcbm\_toc.yml" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+  <!-- Uncomment the CoreCompile target to enable the Build command in
+       Visual Studio and specify your pre- and post-build commands in
+       the BeforeBuild and AfterBuild targets below. -->
+  <!--<Target Name="CoreCompile" />-->
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+</Project>
