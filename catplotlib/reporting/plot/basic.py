@@ -4,11 +4,14 @@ from catplotlib.reporting.style.dashes import Dash
 from catplotlib.reporting.style.dashes import Dashes
 from catplotlib.provider.units import Units
 
-def plot_annual_indicators(fig, ax, provider, *indicators, legend_suffix="", units=None):
+def plot_annual_indicators(fig, ax, provider, *indicators, legend_suffix="", units=None,
+                           start_year=None, end_year=None):
     all_data = None
     styles = {}
     for indicator in indicators:
-        indicator_data, indicator_styles = provider.get_annual_result(indicator, units=units)
+        indicator_data, indicator_styles = provider.get_annual_result(
+            indicator, start_year=start_year, end_year=end_year, units=units)
+
         styles.update(indicator_styles)
         if all_data is None:
             all_data = indicator_data
@@ -27,7 +30,8 @@ def plot_annual_indicators(fig, ax, provider, *indicators, legend_suffix="", uni
     fig.legend(bbox_to_anchor=(1, 1), loc="upper left")
     fig.tight_layout()
 
-def basic_results_graph(providers, *indicators, quiet=True, units=Units.Tc):
+def basic_results_graph(providers, *indicators, quiet=True, units=Units.Tc,
+                        start_year=None, end_year=None):
     fig, ax = plt.subplots()
     single_provider = not isinstance(providers, list) or len(providers) == 1
     if single_provider:
@@ -35,9 +39,8 @@ def basic_results_graph(providers, *indicators, quiet=True, units=Units.Tc):
         plot_annual_indicators(fig, ax, provider, *indicators, units=units)
     else:
         for provider in providers:
-            plot_annual_indicators(fig, ax, provider, *indicators,
-                                   legend_suffix=f" ({provider.name})",
-                                   units=units)
+            plot_annual_indicators(fig, ax, provider, *indicators, legend_suffix=f" ({provider.name})",
+                                   units=units, start_year=start_year, end_year=end_year)
     
     ax.set_xlabel("Year")
     ax.set_ylabel(units.value[2])
