@@ -174,21 +174,11 @@ class Layer:
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
         raster_data = band.ReadAsArray()
-        width = raster.RasterXSize
-        height = raster.RasterYSize
-        origin_x, pixel_size_x, _, origin_y, _, pixel_size_y = raster.GetGeoTransform()
-        for row in range(height):
-            row_lat_top = origin_y - pixel_size_y * row
-            row_lat_mid = lat - pixel_size_y / 2
-            lat_size_m = distance((row_lat_top, origin_x), (row_lat_top - pixel_size_y, origin_x)).m
-            lon_size_m = distance((row_lat_mid, origin_x), (row_lat_mid, origin_x + pixel_size_x)).m
-            pixel_size_ha = lat_size_m * lon_size_m / one_hectare
-            for col in range(width):
-                pixel_value = raster_data[row][col]
-                if pixel_value != self.nodata_value:
-                    raster_data[row][col] = unit_conversion * (
-                        pixel_value * pixel_size_ha if current_per_ha
-                        else pixel_value / pixel_size_ha)
+        for pixel_value, pixel_size_ha in self.iter_wgs_pixels(raster, raster_data):
+            if pixel_value != self.nodata_value:
+                raster_data[row][col] = unit_conversion * (
+                    pixel_value * pixel_size_ha if current_per_ha
+                    else pixel_value / pixel_size_ha)
 
         self._save_as(raster_data, self.nodata_value, output_path)
         
@@ -226,27 +216,32 @@ class Layer:
             raster_data[raster_data != self.nodata_value] *= unit_conversion * per_ha_modifier
             total_area = len(raster_data[raster_data != self.nodata_value]) * pixel_size_m2 / one_hectare
         else:
-            width = raster.RasterXSize
-            height = raster.RasterYSize
-            origin_x, pixel_size_x, _, origin_y, _, pixel_size_y = raster.GetGeoTransform()
-            for row in range(height):
-                row_lat_top = origin_y - pixel_size_y * row
-                row_lat_mid = row_lat_top - pixel_size_y / 2
-                lat_size_m = distance((row_lat_top, origin_x), (row_lat_top - pixel_size_y, origin_x)).m
-                lon_size_m = distance((row_lat_mid, origin_x), (row_lat_mid, origin_x + pixel_size_x)).m
-                pixel_size_ha = lat_size_m * lon_size_m / one_hectare
-                for col in range(width):
-                    pixel_value = raster_data[row][col]
-                    if pixel_value != self.nodata_value:
-                        total_area += pixel_size_ha
-                        raster_data[row][col] = unit_conversion * (
-                            pixel_value * pixel_size_ha if current_per_ha
-                            else pixel_value)
+            for pixel_value, pixel_size_ha in self.iter_wgs_pixels(raster, raster_data):
+                if pixel_value != self.nodata_value:
+                    total_area += pixel_size_ha
+                    raster_data[row][col] = unit_conversion * (
+                        pixel_value * pixel_size_ha if current_per_ha
+                        else pixel_value)
 
         raster_data[raster_data == self.nodata_value] = 0
         total_value = raster_data.sum() / (total_area if new_per_ha else 1)
 
         return total_value
+
+    def iter_wgs_pixels(self, raster, data):
+        one_hectare = 100 ** 2
+        width = raster.RasterXSize
+        height = raster.RasterYSize
+        origin_x, pixel_size_x, _, origin_y, _, pixel_size_y = raster.GetGeoTransform()
+        for row in range(height):
+            row_lat_top = origin_y - pixel_size_y * row
+            row_lat_mid = row_lat_top - pixel_size_y / 2
+            lat_size_m = distance((row_lat_top, origin_x), (row_lat_top - pixel_size_y, origin_x)).m
+            lon_size_m = distance((row_lat_mid, origin_x), (row_lat_mid, origin_x + pixel_size_x)).m
+            pixel_size_ha = lat_size_m * lon_size_m / one_hectare
+            for col in range(width):
+                pixel_value = data[row][col]
+                yield pixel_value, pixel_size_ha
 
     def reclassify(self, new_interpretation, nodata_value=0):
         '''

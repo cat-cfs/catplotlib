@@ -67,7 +67,7 @@ if __name__ == "__main__":
         with cleanup():
             moja_bbox.init()
             
-        tsa_bounding_box = BoundingBox("bounding_box.tiff")
+        tsa_bounding_box = BoundingBox(rf"{layer_root}\bounding_box.tiff")
         cropped_simulation_area = tsa_bounding_box.crop(BoundingBox(rf"{scenario_output}\age_1990.tif"))
         bounding_box = BoundingBox(cropped_simulation_area.path, find_best_projection(cropped_simulation_area))
 

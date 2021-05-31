@@ -60,8 +60,7 @@ def basic_combo_graph(bar_provider, bar_indicator, line_providers, line_indicato
     ax.set_ylabel(units.value[2])
 
     indicator_data, _ = bar_provider.get_annual_result(bar_indicator, units=units)
-    ax.bar(indicator_data["year"], indicator_data[bar_indicator], label=bar_indicator,
-           color=color, marker=marker, linestyle=linestyle)
+    ax.bar(indicator_data["year"], indicator_data[bar_indicator], label=bar_indicator)
 
     if not quiet:
         return fig
