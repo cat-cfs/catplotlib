@@ -12,11 +12,17 @@ def plot_annual_indicators(fig, ax, provider, *indicators, legend_suffix="", uni
         indicator_data, indicator_styles = provider.get_annual_result(
             indicator, start_year=start_year, end_year=end_year, units=units)
 
+        if indicator_data is None:
+            continue
+
         styles.update(indicator_styles)
         if all_data is None:
             all_data = indicator_data
         else:
             all_data = all_data.merge(indicator_data, on="year", how="outer")
+
+    if all_data is None or all_data.empty:
+        return
 
     cols = [col for col in all_data.columns if col != "year"]
     x_values = all_data["year"]

@@ -12,6 +12,9 @@ class StyleManager:
         self._cache = {}
 
     def style(self, data):
+        if data is None or data.empty:
+            return
+
         styles = {
             col: {
                 "color":  self._cache.get(col, {}).get("color") or self._palette.next(),

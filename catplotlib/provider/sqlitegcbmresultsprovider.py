@@ -55,6 +55,9 @@ class SqliteGcbmResultsProvider(ResultsProvider):
     def get_annual_result(self, indicator, start_year=None, end_year=None, units=Units.Tc, **kwargs):
         '''See GcbmResultsProvider.get_annual_result.'''
         table, value_col = self._find_indicator_table(indicator)
+        if not table:
+            return
+
         per_ha, units_tc, _ = units.value
         area = self.simulation_area if per_ha else 1
         if not start_year or not end_year:
