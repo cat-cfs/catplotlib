@@ -6,9 +6,9 @@ class Dash(Enum):
     Solid       = "solid",       "solid"
     Dot         = "dot",         "dotted"
     Dashed      = "dash",        "dashed"
-    LongDash    = "longdash",    "(0, (5, 10))"
+    LongDash    = "longdash",    (0, (5, 10))
     DashDot     = "dashdot",     "dashdot"
-    LongDashDot = "longdashdot", "(0, (3, 10, 1, 10))"
+    LongDashDot = "longdashdot", (0, (3, 10, 1, 10))
 
     @staticmethod
     def as_plotly(dash):
