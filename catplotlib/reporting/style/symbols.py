@@ -28,21 +28,7 @@ class Symbol(Enum):
 class Symbols:
 
     def __init__(self, symbols=None):
-        symbols = symbols or [
-            Symbol.Circle,
-            Symbol.Square,
-            Symbol.Diamond,
-            Symbol.Cross,
-            Symbol.X,
-            Symbol.TriangleUp,
-            Symbol.TriangleDown,
-            Symbol.TriangleLeft,
-            Symbol.TriangleRight,
-            Symbol.Pentagon,
-            Symbol.Hexagon,
-            Symbol.Star
-        ]
-
+        symbols = symbols or [s for s in Symbol]
         self._symbols = LoopingIterator(symbols)
 
     def next(self):

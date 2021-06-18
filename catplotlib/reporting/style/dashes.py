@@ -22,7 +22,7 @@ class Dash(Enum):
 class Dashes:
 
     def __init__(self, dashes=None):
-        dashes = dashes or [Dash.Solid]
+        dashes = dashes or [d for d in Dash]
         self._dashes = LoopingIterator(dashes)
 
     def next(self):

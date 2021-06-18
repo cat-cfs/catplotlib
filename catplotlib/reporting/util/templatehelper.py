@@ -4,10 +4,8 @@ from IPython.display import Markdown
 from plotly.express.colors import qualitative as plotly_colors
 from catplotlib.reporting.provider.stylingresultsprovider import StylingResultsProvider
 from catplotlib.reporting.style.stylemanager import StyleManager
-from catplotlib.reporting.style.dashes import Dash
 from catplotlib.reporting.style.dashes import Dashes
 from catplotlib.reporting.style.palette import Palette
-from catplotlib.reporting.style.symbols import Symbol
 from catplotlib.reporting.style.symbols import Symbols
 
 def wrap_string(s, n=60, spacer="&#8203;"):
@@ -15,15 +13,15 @@ def wrap_string(s, n=60, spacer="&#8203;"):
 
 def create_providers(paths, style_manager=None, rotate_linestyles=True,
                      rotate_colors=True, rotate_symbols=True):
-    rotate_dashes = Dashes([d for d in Dash])
-    rotate_colors = Palette(plotly_colors.Plotly)
-    rotate_symbols = Symbols([s for s in Symbol])
+    static_dashes = Dashes()
+    static_colors = Palette(plotly_colors.Plotly)
+    static_symbols = Symbols()
 
     providers = []
     for label, path in paths.items():
-        static_dash = Dashes([rotate_dashes.next()]) if not rotate_linestyles else None
-        static_color = Palette([rotate_colors.next()]) if not rotate_colors else None
-        static_symbol = Symbols([rotate_symbols.next()]) if not rotate_symbols else None
+        static_dash = Dashes([static_dashes.next()]) if not rotate_linestyles else None
+        static_color = Palette([static_colors.next()]) if not rotate_colors else None
+        static_symbol = Symbols([static_symbols.next()]) if not rotate_symbols else None
         results_style_manager = StyleManager(static_color, static_symbol, static_dash)
         providers.append(StylingResultsProvider(path, style_manager=results_style_manager, name=label))
 
