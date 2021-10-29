@@ -33,6 +33,9 @@
     <Compile Include="catplotlib\reporting\style\stylemanager.py" />
     <Compile Include="catplotlib\reporting\style\symbols.py" />
     <Compile Include="catplotlib\reporting\style\__init__.py" />
+    <Compile Include="catplotlib\util\cache.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="catplotlib\util\loopingiterator.py" />
     <Compile Include="catplotlib\reporting\util\templatehelper.py" />
     <Compile Include="catplotlib\reporting\util\__init__.py" />

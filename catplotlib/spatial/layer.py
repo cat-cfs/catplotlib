@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import subprocess
+import math
 import numpy as np
 from itertools import chain
 from enum import Enum
@@ -14,6 +15,7 @@ from catplotlib.util.config import gdal_memory_limit
 from catplotlib.util.tempfile import TempFileManager
 from catplotlib.spatial.display.frame import Frame
 from catplotlib.provider.units import Units
+from catplotlib.util.cache import get_cache
 
 class BlendMode(Enum):
     
@@ -36,12 +38,15 @@ class Layer:
     'units' -- the units the layer's pixel values are in
     '''
 
-    def __init__(self, path, year, interpretation=None, units=Units.TcPerHa):
+    def __init__(self, path, year, interpretation=None, units=Units.TcPerHa, cache=None):
         self._path = path
         self._year = int(year)
         self._interpretation = interpretation
         self._units = units
         self._info = None
+        self._cache = cache or get_cache()
+        self._min = None
+        self._max = None
 
     @property
     def interpretation(self):
@@ -71,18 +76,27 @@ class Layer:
         '''Gets this layer's GDAL info dictionary, including min/max values.'''
         if not self._info:
             self._info = json.loads(gdal.Info(
-                self._path, format="json", deserialize=False, computeMinMax=True).replace("nan", "0"))
+                self._path, format="json", deserialize=False, computeMinMax=False).replace("nan", "0"))
         
         return self._info
 
     @property
     def min_max(self):
         '''Gets this layer's minimum and maximum pixel values.'''
-        info = self.info
-        if not info or "computedMin" not in info["bands"][0]:
-            return (0, 0)
+        if self._min is not None and self._max is not None:
+            return self._min, self._max
 
-        return (info["bands"][0]["computedMin"], info["bands"][0]["computedMax"])
+        info = json.loads(gdal.Info(
+            self._path, format="json", deserialize=False, computeMinMax=True).replace("nan", "0"))
+        
+        if not info or "computedMin" not in info["bands"][0]:
+            self._min = 0
+            self._max = 0
+        else:
+            self._min = info["bands"][0]["computedMin"]
+            self._max = info["bands"][0]["computedMax"]
+
+        return self._min, self._max
 
     @property
     def data_type(self):
@@ -94,7 +108,9 @@ class Layer:
         '''Gets this layer's nodata value in its correct Python type.'''
         value = self.info["bands"][0]["noDataValue"]
         dt = str(self.data_type).lower()
-        if dt == "float32" or dt == "float" or dt == str(gdal.GDT_Float32):
+        if (dt == "float32" or dt == "float" or dt == str(gdal.GDT_Float32)
+            or dt == "float64" or dt == str(gdal.GDT_Float64)
+        ):
             return float(value)
         else:
             return int(value)
@@ -169,20 +185,20 @@ class Layer:
                            creation_options=gdal_creation_options,
                            overwrite=True, A=self.path)
 
-            return Layer(output_path, self._year, self._interpretation, units)
+            return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
 
-        raster = gdal.Open(self._path)
-        band = raster.GetRasterBand(1)
-        raster_data = band.ReadAsArray()
-        for pixel_value, pixel_size_ha in self.iter_wgs_pixels(raster, raster_data):
-            if pixel_value != self.nodata_value:
-                raster_data[row][col] = unit_conversion * (
-                    pixel_value * pixel_size_ha if current_per_ha
-                    else pixel_value / pixel_size_ha)
+        area_raster_path = self.get_area_raster()
+        per_ha_conversion_op = "*" if current_per_ha else "/"
+        calc = " ".join((
+            f"(A.astype(numpy.float64) * {unit_conversion} {per_ha_conversion_op} B)",
+            f"* (A != {self.nodata_value})",
+            f"+ ((A == {self.nodata_value}) * {self.nodata_value})"))
 
-        self._save_as(raster_data, self.nodata_value, output_path)
+        gdal_calc.Calc(calc, output_path, self.nodata_value, quiet=True,
+                       creation_options=gdal_creation_options,
+                       overwrite=True, A=self.path, B=area_raster_path)
         
-        return Layer(output_path, self._year, self._interpretation, units)
+        return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
 
     def aggregate(self, units=None):
         '''
@@ -205,7 +221,7 @@ class Layer:
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
         raster_data = band.ReadAsArray()
-        total_area = 0
+        nodata_value = self.nodata_value
 
         # First need to convert pixel values to absolute (as opposed to per hectare), in the correct
         # units (tc/ktc/mtc), and determine the total area of non-nodata pixels.
@@ -213,36 +229,132 @@ class Layer:
             _, pixel_size, *_ = self.info["geoTransform"]
             pixel_size_m2 = float(pixel_size) ** 2
             per_ha_modifier = pixel_size_m2 / one_hectare if current_per_ha else 1
-            raster_data[raster_data != self.nodata_value] *= unit_conversion * per_ha_modifier
-            total_area = len(raster_data[raster_data != self.nodata_value]) * pixel_size_m2 / one_hectare
+            raster_data[raster_data != nodata_value] *= unit_conversion * per_ha_modifier
+            total_area = len(raster_data[raster_data != nodata_value]) * pixel_size_m2 / one_hectare
         else:
-            for pixel_value, pixel_size_ha in self.iter_wgs_pixels(raster, raster_data):
-                if pixel_value != self.nodata_value:
-                    total_area += pixel_size_ha
-                    raster_data[row][col] = unit_conversion * (
-                        pixel_value * pixel_size_ha if current_per_ha
-                        else pixel_value)
+            raster_data[raster_data != nodata_value] *= unit_conversion
 
-        raster_data[raster_data == self.nodata_value] = 0
+            area_raster_path = self.get_area_raster()
+            area_raster = gdal.Open(area_raster_path)
+            area_band = area_raster.GetRasterBand(1)
+            area_data = area_band.ReadAsArray()
+            total_area = area_data[raster_data != nodata_value].sum()
+
+            if current_per_ha:
+                raster_data[raster_data != nodata_value] *= area_data[raster_data != nodata_value]
+
+        raster_data[raster_data == nodata_value] = 0
         total_value = raster_data.sum() / (total_area if new_per_ha else 1)
 
         return total_value
 
-    def iter_wgs_pixels(self, raster, data):
-        one_hectare = 100 ** 2
-        width = raster.RasterXSize
-        height = raster.RasterYSize
-        origin_x, pixel_size_x, _, origin_y, _, pixel_size_y = raster.GetGeoTransform()
-        for row in range(height):
-            row_lat_top = origin_y - pixel_size_y * row
-            row_lat_mid = row_lat_top - pixel_size_y / 2
-            lat_size_m = distance((row_lat_top, origin_x), (row_lat_top - pixel_size_y, origin_x)).m
-            lon_size_m = distance((row_lat_mid, origin_x), (row_lat_mid, origin_x + pixel_size_x)).m
-            pixel_size_ha = lat_size_m * lon_size_m / one_hectare
-            for col in range(width):
-                pixel_value = data[row][col]
-                yield pixel_value, pixel_size_ha
+    def chunk(self, chunk_size=5):
+        '''
+        Chunks this layer up into blocks, returning the corner coordinates in
+        lat/lon and the x/y pixel offset suitable for writing.
 
+        Arguments:
+        'chunk_size' -- the maximum chunk size in lat/lon, yielding chunks of
+            chunk_size^2
+
+        Returns (xmin, xmax, ymin, ymax), (x_pixel_offset, y_pixel_offset)
+        '''
+        bounds = self.info["cornerCoordinates"]
+        xmin, ymin = bounds["upperLeft"]
+        xmax, ymax = bounds["lowerRight"]
+
+        whole_xmin = math.ceil(xmin)
+        whole_ymin = math.floor(ymin)
+        whole_xmax = math.floor(xmax)
+        whole_ymax = math.ceil(ymax)
+
+        geotransform = self.info["geoTransform"]
+        resolution = geotransform[1]
+
+        if abs(xmax - xmin) <= chunk_size:
+            x_segments = [xmin, xmax]
+        else:
+            x_segments = [xmin] + list(range(
+                whole_xmin, whole_xmax,
+                chunk_size if whole_xmin < whole_xmax else -chunk_size)) + [xmax]
+
+        if abs(ymax - ymin) <= chunk_size:
+            y_segments = [ymin, ymax]
+        else:
+            y_segments = [ymin] + list(range(
+                whole_ymin, whole_ymax,
+                chunk_size if whole_ymin < whole_ymax else -chunk_size)) + [ymax]
+
+        for chunk_y_idx in range(len(y_segments) - 1):
+            chunk_y_min = y_segments[chunk_y_idx]
+            chunk_y_max = y_segments[chunk_y_idx + 1]
+            y_px_offset = int(abs(chunk_y_min - ymin) / resolution)
+            for chunk_x_idx in range(len(x_segments) - 1):
+                chunk_x_min = x_segments[chunk_x_idx]
+                chunk_x_max = x_segments[chunk_x_idx + 1]
+                x_px_offset = int(abs(chunk_x_min - xmin) / resolution)
+                
+                yield (chunk_x_min, chunk_x_max, chunk_y_min, chunk_y_max), (x_px_offset, y_px_offset)
+
+    def area_grid(self, xmin, xmax, ymin, ymax, resolution):
+        '''
+        Returns a grid for the specified extent and resolution in degrees lat/lon
+        where each pixel's value is its area in hectares.
+
+        Arguments:
+        'xmin' -- top-left corner x coordinate
+        'xmax' -- bottom-right corner x coordinate
+        'ymin' -- top-left corner y coordinate
+        'ymax' -- bottom-right corner y coordinate
+        'resolution' -- pixel resolution in degrees
+        '''
+        m_per_hectare = 100 ** 2
+        n_lats = int(abs(xmax - xmin) / resolution)
+        pi = 3.141592653590
+        lats = np.arange(ymin, ymax, resolution * (-1 if ymin > ymax else 1))
+        earth_diameter_m_per_deg = 2.0 * pi * 6378137.0 / 360.0
+        area = np.abs(np.ones(n_lats)[:, None] * resolution**2 * earth_diameter_m_per_deg**2
+                      * np.cos(lats[:-1] * pi / 180.0) / m_per_hectare)
+        
+        return area.T
+
+    def get_area_raster(self):
+        '''
+        Generates and caches an area raster for this layer's spatial extent and
+        resolution.
+
+        Returns the path to the area raster.
+        '''
+        geotransform = self.info["geoTransform"]
+        resolution = geotransform[1]
+        cache_key = str(geotransform)
+        area_raster_path = self._cache.storage.get(cache_key)
+        if area_raster_path:
+            return area_raster_path
+
+        with self._cache.lock:
+            area_raster_path = self._cache.storage.get(cache_key)
+            if area_raster_path:
+                return area_raster_path
+
+            gdal.SetCacheMax(gdal_memory_limit)
+            driver = gdal.GetDriverByName("GTiff")
+            original_raster = gdal.Open(self._path)
+            area_raster_path = TempFileManager.mktmp(no_manual_cleanup=True)
+            area_raster = driver.CreateCopy(area_raster_path, original_raster, strict=0,
+                                            options=gdal_creation_options)
+
+            band = area_raster.GetRasterBand(1)
+            for extent, px_offset in self.chunk():
+                band.WriteArray(self.area_grid(*extent, resolution), *px_offset)
+
+            band.FlushCache()
+            band = None
+            area_raster = None
+            self._cache.storage[cache_key] = area_raster_path
+            
+            return area_raster_path
+        
     def reclassify(self, new_interpretation, nodata_value=0):
         '''
         Reclassifies a copy of this layer's pixel values according to a new interpretation.
@@ -284,7 +396,7 @@ class Layer:
 
         output_path = TempFileManager.mktmp(suffix=".tif")
         self._save_as(raster_data, nodata_value, output_path)
-        reclassified_layer = Layer(output_path, self._year, new_interpretation, self._units)
+        reclassified_layer = Layer(output_path, self._year, new_interpretation, self._units, cache=self._cache)
 
         return reclassified_layer
 
@@ -307,7 +419,9 @@ class Layer:
         raster_data[raster_data != self.nodata_value] = flattened_value
         output_path = TempFileManager.mktmp(suffix=".tif")
         self._save_as(raster_data, self.nodata_value, output_path)
-        flattened_layer = Layer(output_path, self.year, units=self._units if preserve_units else Units.Blank)
+        flattened_layer = Layer(output_path, self.year,
+                                units=self._units if preserve_units else Units.Blank,
+                                cache=self._cache)
 
         return flattened_layer
 
@@ -322,7 +436,8 @@ class Layer:
         gdal.SetCacheMax(gdal_memory_limit)
         gdal.Warp(output_path, self._path, dstSRS=projection, creationOptions=gdal_creation_options)
 
-        reprojected_layer = Layer(output_path, self._year, self._interpretation, self._units)
+        reprojected_layer = Layer(output_path, self._year, self._interpretation,
+                                  self._units, cache=self._cache)
 
         return reprojected_layer
 
@@ -361,7 +476,7 @@ class Layer:
                        creation_options=gdal_creation_options,
                        overwrite=True, A=self.path, **calc_args)
 
-        return Layer(output_path, self._year, self._interpretation, self._units)
+        return Layer(output_path, self._year, self._interpretation, self._units, cache=self._cache)
 
     def render(self, legend, bounding_box=None, transparent=True):
         '''

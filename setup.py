@@ -4,7 +4,7 @@ from glob import glob
 
 setup(
     name="catplotlib",
-    version="1.11",
+    version="1.2",
     description="catplotlib",
     long_description="catplotlib",
     url="",
@@ -22,7 +22,7 @@ setup(
     packages=find_packages(exclude=["contrib", "docs", "tests"]),
     install_requires=[
         "numpy", "matplotlib", "seaborn", "imageio", "imageio-ffmpeg",
-        "pillow", "geopy", "pysal<=1.15.0", "utm", "jupyter-book",
+        "pillow", "geopy", "pysal<=1.15.0", "utm", "jupyter-book==0.9.1",
         "plotly", "sphinxcontrib-bibtex<2.0.0", "pyppeteer", "cartopy",
         "aenum", "pyepsg"
     ],

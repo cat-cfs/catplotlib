@@ -1,5 +1,6 @@
 import os
 import gdal
+import shutil
 from itertools import chain
 from collections import defaultdict
 from multiprocessing import Pool
@@ -52,6 +53,29 @@ class LayerCollection:
     def merge(self, other):
         '''Merges another LayerCollection's layers into this one.'''
         self._layers.extend(other._layers)
+
+    def save_copy(self, path, base_name=None):
+        '''Saves the (potentially temporary) layers in this collection to a new path.'''
+        os.makedirs(path, exist_ok=True)
+        for layer in self._layers:
+            output_filename = os.path.basename(layer.path) if not base_name \
+                else f"{base_name}_{layer.year}.tif"
+
+            abs_output_filename = os.path.join(path, output_filename)
+            if os.path.exists(abs_output_filename):
+                os.remove(abs_output_filename)
+
+            shutil.copyfile(layer.path, abs_output_filename)
+
+    def convert_units(self, units):
+        '''
+        Converts the units in this collection's layers to a new type.
+        
+        Arguments:
+        'units' -- the units to convert to.
+        '''
+        return LayerCollection([layer.convert_units(units) for layer in self._layers],
+                               self._background_color, self._colorizer)
 
     def blend(self, *collections):
         '''

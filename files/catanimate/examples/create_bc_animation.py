@@ -3,20 +3,19 @@ from mojadata.cleanup import cleanup
 from mojadata.layer.vectorlayer import VectorLayer
 from mojadata.layer.attribute import Attribute
 from mojadata.layer.filter.valuefilter import ValueFilter
-from gcbmanimation.color.quantilecolorizer import QuantileColorizer
-from gcbmanimation.color.customcolorizer import CustomColorizer
-from gcbmanimation.layer.layer import Layer
-from gcbmanimation.layer.layer import BlendMode
-from gcbmanimation.layer.boundingbox import BoundingBox
-from gcbmanimation.util.disturbancelayerconfigurer import DisturbanceLayerConfigurer
-from gcbmanimation.provider.spatialgcbmresultsprovider import SpatialGcbmResultsProvider
-from gcbmanimation.indicator.indicator import Indicator
-from gcbmanimation.indicator.compositeindicator import CompositeIndicator
-from gcbmanimation.indicator.indicator import Units
-from gcbmanimation.animator.animator import Animator
-from gcbmanimation.util.utmzones import find_best_projection
-from gcbmanimation.util.tempfile import TempFileManager
-from dbfread import DBF
+from catplotlib.animator.color.quantilecolorizer import QuantileColorizer
+from catplotlib.animator.color.customcolorizer import CustomColorizer
+from catplotlib.spatial.layer import Layer
+from catplotlib.spatial.layer import BlendMode
+from catplotlib.spatial.boundingbox import BoundingBox
+from catplotlib.animator.util.disturbancelayerconfigurer import DisturbanceLayerConfigurer
+from catplotlib.provider.spatialgcbmresultsprovider import SpatialGcbmResultsProvider
+from catplotlib.animator.indicator.indicator import Indicator
+from catplotlib.animator.indicator.compositeindicator import CompositeIndicator
+from catplotlib.provider.units import Units
+from catplotlib.animator.animator import Animator
+from catplotlib.util.utmzones import find_best_projection
+from catplotlib.util.tempfile import TempFileManager
 
 if __name__ == "__main__":
     TempFileManager.delete_on_exit()
