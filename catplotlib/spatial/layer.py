@@ -139,13 +139,14 @@ class Layer:
         
         return band.GetHistogram(min=min_value, max=max_value, buckets=buckets)
 
-    def convert_units(self, units):
+    def convert_units(self, units, area_only=False):
         '''
         Converts this layer's values into new units - both scale and area type
         (per hectare or absolute).
 
         Arguments:
         'units' -- a new Units enum value to convert to
+        'area_only' -- only perform per-hectare <-> per-pixel conversion
 
         Returns a copy of this layer in the new units as a new Layer object.
         '''
@@ -155,7 +156,7 @@ class Layer:
         gdal.SetCacheMax(gdal_memory_limit)
         current_per_ha, current_units_tc, current_units_name = self._units.value
         new_per_ha, new_units_tc, new_units_name = units.value
-        unit_conversion = current_units_tc / new_units_tc
+        unit_conversion = 1.0 if area_only else new_units_tc / current_units_tc
 
         if current_per_ha == new_per_ha and unit_conversion == 1:
             self._units = units

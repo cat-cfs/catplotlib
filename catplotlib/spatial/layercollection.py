@@ -67,14 +67,15 @@ class LayerCollection:
 
             shutil.copyfile(layer.path, abs_output_filename)
 
-    def convert_units(self, units):
+    def convert_units(self, units, area_only=False):
         '''
         Converts the units in this collection's layers to a new type.
         
         Arguments:
         'units' -- the units to convert to.
+        'area_only' -- only perform per-hectare <-> per-pixel conversion
         '''
-        return LayerCollection([layer.convert_units(units) for layer in self._layers],
+        return LayerCollection([layer.convert_units(units, area_only) for layer in self._layers],
                                self._background_color, self._colorizer)
 
     def blend(self, *collections):
