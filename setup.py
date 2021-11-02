@@ -31,6 +31,7 @@ setup(
     data_files=[
         ("Tools/catplotlib/catanimate", ["files/catanimate/indicators.json"]),
         ("Tools/catplotlib/catanimate/examples", [
+            "files/examples/calculate_ghg.py",
             "files/catanimate/examples/create_bc_animation.py",
             "files/catanimate/examples/disturbance_colors.json",
             "files/catanimate/examples/interpreted_indicators.json"
