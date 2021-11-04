@@ -244,8 +244,9 @@ class Layer:
             if current_per_ha:
                 raster_data[raster_data != nodata_value] *= area_data[raster_data != nodata_value]
 
-        raster_data[raster_data == nodata_value] = 0
-        total_value = raster_data.sum() / (total_area if new_per_ha else 1)
+        total_value = (
+            raster_data[(raster_data != nodata_value) & (~np.isnan(raster_data))].sum()
+            / (total_area if new_per_ha else 1))
 
         return total_value
 
@@ -455,16 +456,18 @@ class Layer:
             for i, (layer, blend_mode) in enumerate(zip(layers[::2], layers[1::2]), 1)
         }
 
-        calc = "(A "
+        calc = f"(A * (A != {self.nodata_value}) "
         calc += " ".join((
-            f"{blend_mode.value} {layer_key}"
+            f"{blend_mode.value} ({layer_key} * ({layer_key} != {layer.nodata_value}))"
             for layer_key, (layer, blend_mode) in blend_layers.items()))
 
-        calc += f") * (A != {self.nodata_value}) * "
+        calc += f") + (((A == {self.nodata_value}) * "
         calc += " * ".join((
-            f"({layer_key} != {layer.nodata_value})"
+            f"({layer_key} == {layer.nodata_value})"
             for layer_key, (layer, blend_mode) in blend_layers.items()))
 
+        calc += f") * {self.nodata_value})"
+        
         calc_args = {
             layer_key: layer.path
             for layer_key, (layer, blend_mode) in blend_layers.items()
