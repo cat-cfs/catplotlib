@@ -16,8 +16,8 @@ class BoundingBox(Layer):
     'path' -- path to a raster file to use as a bounding box.
     '''
 
-    def __init__(self, path, projection=None):
-        super().__init__(path, 0)
+    def __init__(self, path, projection=None, **kwargs):
+        super().__init__(path, 0, **kwargs)
         self._min_pixel_bounds = None
         self._min_geographic_bounds = None
         self._initialized = False
@@ -101,7 +101,7 @@ class BoundingBox(Layer):
                        creation_options=gdal_creation_options,
                        overwrite=True, A=tmp_path, B=self.path)
 
-        cropped_layer = Layer(output_path, layer.year, layer.interpretation, layer.units)
+        cropped_layer = Layer(output_path, layer.year, layer.interpretation, layer.units, self._cache)
 
         return cropped_layer
 
