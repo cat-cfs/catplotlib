@@ -201,7 +201,7 @@ class Layer:
         
         return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
 
-    def aggregate(self, units=None):
+    def aggregate(self, units=None, area_only=False):
         '''
         Aggregates this layer's non-nodata pixels into either the sum (for a layer of absolute
         values), or the average per-hectare value (for a layer of per-hectare values). If 'units'
@@ -210,13 +210,14 @@ class Layer:
 
         Arguments:
         'units' -- a new Units enum value to convert to
+        'area_only' -- only perform per-hectare <-> per-pixel conversion
 
         Returns the sum or the average per-hectare value of the non-nodata pixels.
         '''
         gdal.SetCacheMax(gdal_memory_limit)
         current_per_ha, current_units_tc, current_units_name = self._units.value
         new_per_ha, new_units_tc, new_units_name = units.value if units else self._units.value
-        unit_conversion = current_units_tc / new_units_tc
+        unit_conversion = 1.0 if area_only else new_units_tc / current_units_tc
         one_hectare = 100 ** 2
 
         raster = gdal.Open(self._path)
