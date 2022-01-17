@@ -26,7 +26,8 @@ class Indicator:
     'title' -- the indicator title for presentation - uses the indicator name if
         not provided.
     'graph_units' -- a Units enum value for the graph units - result values will
-        be converted to these units.
+        be converted to these units. If set to Units.Blank, a graph will not be
+        rendered.
     'map_units' -- a Units enum value for the map units - spatial output values
         will be converted to the target units if necessary.
     'background_color' -- the background (bounding box) color to use for the map
@@ -102,7 +103,7 @@ class Indicator:
 
         Returns a list of Frames, one for each year of output.
         '''
-        if self._interpretation:
+        if self._interpretation or self._graph_units == Units.Blank:
             return None
 
         plot = BasicResultsPlot(self._indicator, self._results_provider, self._graph_units)
