@@ -36,7 +36,7 @@ class SqliteGcbmResultsProvider(ResultsProvider):
     def simulation_years(self):
         '''See GcbmResultsProvider.simulation_years.'''
         conn = sqlite3.connect(self._path)
-        years = conn.execute("SELECT MIN(year), MAX(year) from v_age_indicators").fetchone()
+        years = conn.execute("SELECT MIN(year), MAX(year) from v_age_indicators WHERE year > 0").fetchone()
 
         return years
 
@@ -47,7 +47,7 @@ class SqliteGcbmResultsProvider(ResultsProvider):
         area = conn.execute(
             """
             SELECT SUM(area) FROM v_age_indicators
-            WHERE year = (SELECT MIN(year) FROM v_age_indicators)
+            WHERE year = (SELECT MIN(year) FROM v_age_indicators WHERE year > 0)
             """).fetchone()[0]
 
         return area
@@ -73,6 +73,7 @@ class SqliteGcbmResultsProvider(ResultsProvider):
             LEFT JOIN {table} i
                 ON years.year = i.year
             WHERE i.indicator = '{indicator}'
+                AND years.year > 0
                 AND (years.year BETWEEN {start_year} AND {end_year})
             GROUP BY years.year
             ORDER BY years.year

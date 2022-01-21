@@ -11,8 +11,7 @@ from catplotlib.reporting.style.symbols import Symbols
 def wrap_string(s, n=60, spacer="&#8203;"):
     return spacer.join(wrap(s, n))
 
-def create_providers(paths, style_manager=None, rotate_linestyles=True,
-                     rotate_colors=True, rotate_symbols=True):
+def create_providers(paths, rotate_linestyles=True, rotate_colors=True, rotate_symbols=True):
     static_dashes = Dashes()
     static_colors = Palette(plotly_colors.Plotly)
     static_symbols = Symbols()

@@ -39,11 +39,11 @@ show_raster_location(bounding_box_path)
 
 ```{code-cell} ipython3
 :tags: ["remove-cell"]
-glue("npp", basic_results_graph(providers, "NPP", units=Units.TcPerHa, quiet=False), display=False)
-glue("rh", basic_results_graph(providers, "Rh", units=Units.TcPerHa, quiet=False), display=False)
-glue("nep", basic_results_graph(providers, "NEP", units=Units.TcPerHa, quiet=False), display=False)
-glue("nep_npp_rh", basic_results_graph(providers, "NEP", "NPP", "Rh", units=Units.TcPerHa, quiet=False), display=False)
-glue("litterfall", basic_results_graph(providers, "Total Litterfall", units=Units.TcPerHa, quiet=False), display=False)
+glue("npp", basic_results_graph(providers, "NPP", units=Units.TcPerHa, display=False), display=False)
+glue("rh", basic_results_graph(providers, "Rh", units=Units.TcPerHa, display=False), display=False)
+glue("nep", basic_results_graph(providers, "NEP", units=Units.TcPerHa, display=False), display=False)
+glue("nep_npp_rh", basic_results_graph(providers, "NEP", "NPP", "Rh", units=Units.TcPerHa, display=False), display=False)
+glue("litterfall", basic_results_graph(providers, "Total Litterfall", units=Units.TcPerHa, display=False), display=False)
 ```
 
 ````{tabbed} NPP
@@ -75,7 +75,7 @@ glue("litterfall", basic_results_graph(providers, "Total Litterfall", units=Unit
 
 ```{code-cell} ipython3
 :tags: ["remove-cell"]
-glue("ag_bio", basic_results_graph(providers, "Aboveground Biomass", units=Units.TcPerHa, quiet=False), display=False)
+glue("ag_bio", basic_results_graph(providers, "Aboveground Biomass", units=Units.TcPerHa, display=False), display=False)
 ```
 
 ````{tabbed} Aboveground Biomass

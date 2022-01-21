@@ -1,6 +1,7 @@
-- file: 01_report
-
-- part: Indicators
-  chapters:
-  - file: 02_stocks
-  - file: 03_fluxes
+format: jb-book
+root: 01_report
+options:
+  caption: Indicators
+chapters:
+- file: 02_stocks
+- file: 03_fluxes

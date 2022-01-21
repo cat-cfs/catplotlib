@@ -31,12 +31,12 @@ def plot_annual_indicators(fig, ax, provider, *indicators, legend_suffix="", uni
         marker = Symbol.as_matplotlib(styles[col]["symbol"])
         linestyle = Dash.as_matplotlib(styles[col]["dash"])
         ax.plot(x_values, all_data[col], label=f"{col}{legend_suffix}",
-                color=color, marker=marker, linestyle=linestyle)
+                color=color, marker=marker, linestyle=linestyle, markevery=0.1)
 
     fig.legend(bbox_to_anchor=(1, 1), loc="upper left")
     fig.tight_layout()
 
-def basic_results_graph(providers, *indicators, quiet=True, units=Units.Tc,
+def basic_results_graph(providers, *indicators, display=True, units=Units.Tc,
                         start_year=None, end_year=None):
     fig, ax = plt.subplots()
     single_provider = not isinstance(providers, list) or len(providers) == 1
@@ -51,11 +51,11 @@ def basic_results_graph(providers, *indicators, quiet=True, units=Units.Tc,
     ax.set_xlabel("Year")
     ax.set_ylabel(units.value[2])
 
-    if not quiet:
+    if not display:
         return fig
 
 def basic_combo_graph(bar_provider, bar_indicator, line_providers, line_indicators,
-                      quiet=True, bar_units=Units.Tc, line_units=Units.Blank):
+                      display=True, bar_units=Units.Tc, line_units=Units.Blank):
     fig, ax = plt.subplots()
     for provider in line_providers:
         plot_annual_indicators(fig, ax, provider, *line_indicators,
@@ -68,5 +68,5 @@ def basic_combo_graph(bar_provider, bar_indicator, line_providers, line_indicato
     indicator_data, _ = bar_provider.get_annual_result(bar_indicator, units=units)
     ax.bar(indicator_data["year"], indicator_data[bar_indicator], label=bar_indicator)
 
-    if not quiet:
+    if not display:
         return fig
