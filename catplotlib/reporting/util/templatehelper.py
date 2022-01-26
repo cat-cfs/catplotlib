@@ -11,15 +11,15 @@ from catplotlib.reporting.style.symbols import Symbols
 def wrap_string(s, n=60, spacer="&#8203;"):
     return spacer.join(wrap(s, n))
 
-def create_providers(paths, rotate_linestyles=True, rotate_colors=True, rotate_symbols=True):
+def create_providers(paths, rotate_linestyles=True, rotate_colors=True, rotate_symbols=True, palette=None):
     static_dashes = Dashes()
-    static_colors = Palette(plotly_colors.Plotly)
+    static_colors = palette or Palette(plotly_colors.Plotly)
     static_symbols = Symbols()
 
     providers = []
     for label, path in paths.items():
         static_dash = Dashes([static_dashes.next()]) if not rotate_linestyles else None
-        static_color = Palette([static_colors.next()]) if not rotate_colors else None
+        static_color = Palette([static_colors.next()]) if not rotate_colors else static_colors.copy()
         static_symbol = Symbols([static_symbols.next()]) if not rotate_symbols else None
         results_style_manager = StyleManager(static_color, static_symbol, static_dash)
         providers.append(StylingResultsProvider(path, style_manager=results_style_manager, name=label))
