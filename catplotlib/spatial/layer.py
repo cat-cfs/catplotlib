@@ -251,75 +251,51 @@ class Layer:
 
         return total_value
 
-    def chunk(self, chunk_size=5):
+    def area_grid(self, chunk_size=5000):
         '''
-        Chunks this layer up into blocks, returning the corner coordinates in
-        lat/lon and the x/y pixel offset suitable for writing.
+        Returns a grid for this layer where each pixel's value is its area in
+        hectares.
 
         Arguments:
-        'chunk_size' -- the maximum chunk size in lat/lon, yielding chunks of
+        'chunk_size' -- the maximum chunk size in pixels, yielding chunks of
             chunk_size^2
 
-        Returns (xmin, xmax, ymin, ymax), (x_pixel_offset, y_pixel_offset)
+        Yields data and pixel offsets for writing with GDAL.
         '''
+        m_per_hectare = 100 ** 2
+        pi = 3.141592653590
+        earth_diameter_m_per_deg = 2.0 * pi * 6378137.0 / 360.0
+
         bounds = self.info["cornerCoordinates"]
         xmin, ymin = bounds["upperLeft"]
         xmax, ymax = bounds["lowerRight"]
 
-        whole_xmin = math.ceil(xmin)
-        whole_ymin = math.floor(ymin)
-        whole_xmax = math.floor(xmax)
-        whole_ymax = math.ceil(ymax)
+        resolution = self.info["geoTransform"][1]
+        x_res = resolution if xmin < xmax else -resolution
+        y_res = resolution if ymin < ymax else -resolution
 
-        geotransform = self.info["geoTransform"]
-        resolution = geotransform[1]
+        width, height = self.info["size"]
 
-        if abs(xmax - xmin) <= chunk_size:
-            x_segments = [xmin, xmax]
-        else:
-            x_segments = [xmin] + list(range(
-                whole_xmin, whole_xmax,
-                chunk_size if whole_xmin < whole_xmax else -chunk_size)) + [xmax]
-
-        if abs(ymax - ymin) <= chunk_size:
-            y_segments = [ymin, ymax]
-        else:
-            y_segments = [ymin] + list(range(
-                whole_ymin, whole_ymax,
-                chunk_size if whole_ymin < whole_ymax else -chunk_size)) + [ymax]
-
-        for chunk_y_idx in range(len(y_segments) - 1):
-            chunk_y_min = y_segments[chunk_y_idx]
-            chunk_y_max = y_segments[chunk_y_idx + 1]
-            y_px_offset = int(abs(chunk_y_min - ymin) / resolution)
-            for chunk_x_idx in range(len(x_segments) - 1):
-                chunk_x_min = x_segments[chunk_x_idx]
-                chunk_x_max = x_segments[chunk_x_idx + 1]
-                x_px_offset = int(abs(chunk_x_min - xmin) / resolution)
-                
-                yield (chunk_x_min, chunk_x_max, chunk_y_min, chunk_y_max), (x_px_offset, y_px_offset)
-
-    def area_grid(self, xmin, xmax, ymin, ymax, resolution):
-        '''
-        Returns a grid for the specified extent and resolution in degrees lat/lon
-        where each pixel's value is its area in hectares.
-
-        Arguments:
-        'xmin' -- top-left corner x coordinate
-        'xmax' -- bottom-right corner x coordinate
-        'ymin' -- top-left corner y coordinate
-        'ymax' -- bottom-right corner y coordinate
-        'resolution' -- pixel resolution in degrees
-        '''
-        m_per_hectare = 100 ** 2
-        n_lats = int(abs(xmax - xmin) / resolution)
-        pi = 3.141592653590
-        lats = np.arange(ymin, ymax, resolution * (-1 if ymin > ymax else 1))
-        earth_diameter_m_per_deg = 2.0 * pi * 6378137.0 / 360.0
-        area = np.abs(np.ones(n_lats)[:, None] * resolution**2 * earth_diameter_m_per_deg**2
-                      * np.cos(lats[:-1] * pi / 180.0) / m_per_hectare)
+        y_chunk_starts = list(range(0, height, chunk_size))
+        y_chunk_ends = y_chunk_starts[1:] + [height]
+        y_chunks = list(zip(y_chunk_starts, y_chunk_ends))
         
-        return area.T
+        x_chunk_starts = list(range(0, width, chunk_size))
+        x_chunk_ends = x_chunk_starts[1:] + [width]
+        x_chunks = list(zip(x_chunk_starts, x_chunk_ends))
+
+        for i, (y_px_start, y_px_end) in enumerate(y_chunks):
+            chunk_y_min = ymin + y_px_start * y_res
+            chunk_y_max = ymin + y_px_end * y_res
+            for j, (x_px_start, x_px_end) in enumerate(x_chunks):
+                y_size = y_px_end - y_px_start + (1 if i < len(y_chunks) - 1 else 0)
+                x_size = x_px_end - x_px_start + (1 if j < len(x_chunks) - 1 else 0)
+                
+                lats = np.arange(chunk_y_min, chunk_y_max, y_res)[:y_size]
+                area = np.abs(np.ones(x_size)[:, None] * resolution**2 * earth_diameter_m_per_deg**2
+                              * np.cos(lats * pi / 180.0) / m_per_hectare)
+        
+                yield area.T, (x_px_start, y_px_start)
 
     def get_area_raster(self):
         '''
@@ -348,8 +324,8 @@ class Layer:
                                             options=gdal_creation_options)
 
             band = area_raster.GetRasterBand(1)
-            for extent, px_offset in self.chunk():
-                band.WriteArray(self.area_grid(*extent, resolution), *px_offset)
+            for data, px_offset in self.area_grid():
+                band.WriteArray(data, *px_offset)
 
             band.FlushCache()
             band = None
