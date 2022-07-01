@@ -1,4 +1,7 @@
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
 from catplotlib.reporting.style.symbols import Symbol
 from catplotlib.reporting.style.dashes import Dash
 from catplotlib.reporting.style.dashes import Dashes

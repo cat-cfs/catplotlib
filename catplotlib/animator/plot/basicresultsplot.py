@@ -26,8 +26,9 @@ class BasicResultsPlot(ResultsPlot):
         '''
         indicator = kwargs.pop("indicator", self._title)
         indicator_data = self._provider.get_annual_result(indicator, start_year, end_year, self._units, **kwargs)
+        value_key = next((key for key in indicator_data.keys() if str(key).lower() != "year"))
         years = sorted(indicator_data.year.tolist())
-        values = indicator_data["value"]
+        values = indicator_data[value_key]
 
         frames = []
         for i, year in enumerate(years):
@@ -39,7 +40,7 @@ class BasicResultsPlot(ResultsPlot):
                 plt.plot(years, values, marker="o", linestyle="--", color="navy")
                 
                 # Mark the current year.
-                plt.plot(year, indicator_data[indicator_data["year"] == year]["value"],
+                plt.plot(year, indicator_data[indicator_data["year"] == year][value_key],
                          marker="o", linestyle="--", color="b", markersize=15)
 
                 axis_min = min(values) - 0.1

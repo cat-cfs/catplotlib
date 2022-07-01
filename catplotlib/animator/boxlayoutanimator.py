@@ -1,11 +1,11 @@
 import os
 import imageio
 import logging
-from catplotlib.animator.layout.quadrantlayout import QuadrantLayout
+from catplotlib.animator.layout.boxlayout import BoxLayout
 from catplotlib.animator.legend import Legend
 from catplotlib.util.tempfile import TempFileManager
 
-class Animator:
+class BoxLayoutAnimator:
     '''
     Creates animations from GCBM results. Takes a collection of disturbance layers
     and one or more indicators and produces a WMV for each indicator showing the
@@ -73,13 +73,13 @@ class Animator:
                 self._render_single_view(f"{indicator.title} (map view)", indicator_frames,
                                          start_year, end_year, indicator_legend, indicator_legend_title)
 
-            legend_frame = Legend({
-                "Disturbances": disturbance_legend,
-                indicator_legend_title: indicator_legend
-            }).render()
+            left_legend_frame = Legend({None: disturbance_legend}).render()
+            right_legend_frame = Legend({None: indicator_legend}).render()
 
-            layout = QuadrantLayout((50, 60), (50, 60), (50, 40), (50, 40)) if has_graph_frames \
-                else QuadrantLayout((50, 60), (50, 60), (0, 0), (100, 40))
+            layout = BoxLayout([
+                [(50, 60, False), (50, 60, True)],
+                [(25, 40, False), (50, 40, False), (25, 40, False)]
+            ])
 
             animation_frames = []
             for year in range(start_year, end_year + 1):
@@ -87,10 +87,10 @@ class Animator:
                 indicator_frame = self._find_frame(indicator_frames, year)
                 graph_frame = self._find_frame(graph_frames, year) if has_graph_frames else None
                 title = f"{indicator.title}, Year: {year}"
-                animation_frames.append(layout.render(
-                    disturbance_frame, indicator_frame, graph_frame, legend_frame,
-                    "Disturbances", indicator_legend_title, indicator.indicator,
-                    title=title, dimensions=(3840, 2160)))
+                animation_frames.append(layout.render([
+                    [(disturbance_frame, "Disturbances"), (indicator_frame, indicator_legend_title)],
+                    [(left_legend_frame, None), (graph_frame, indicator.indicator), (right_legend_frame, None)]
+                ], title=title, dimensions=(3840, 2160)))
 
             self._create_animation(indicator.title, animation_frames, fps)
 
@@ -101,10 +101,8 @@ class Animator:
     def _render_single_view(self, title, frames, start_year, end_year,
                             legend=None, legend_title=None, scalebar=True, fps=1):
 
-        quadrant_sizes = ((70, 100), (30, 100), (0, 0), (0, 0)) if legend else \
-            ((100, 100), (0, 0), (0, 0), (0, 0))
-
-        layout = QuadrantLayout(*quadrant_sizes, q1_scalebar=scalebar, q2_scalebar=False)
+        box_sizes = [[(70, 100, scalebar), (30, 100, False)]] if legend else [[(100, 100, scalebar)]]
+        layout = BoxLayout(box_sizes)
         legend_frame = Legend({legend_title: legend}).render() if legend else None
 
         animation_frames = []
@@ -112,7 +110,7 @@ class Animator:
             view_frame = self._find_frame(frames, year)
             frame_title = f"{title}, Year: {year}"
             animation_frames.append(layout.render(
-                view_frame, legend_frame, None, None,
+                [[(view_frame, None)] + ([(legend_frame, None)] if legend else [])],
                 title=frame_title, dimensions=(3840, 2160)))
 
         self._create_animation(title, animation_frames, fps)

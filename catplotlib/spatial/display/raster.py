@@ -1,10 +1,13 @@
-import os
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+import os
 import cartopy.crs as ccrs
 import osr
 import gdal
 import numpy as np
-import matplotlib.patches as mpatches
 from matplotlib.colors import ListedColormap
 from matplotlib.colors import BoundaryNorm
 from cartopy.io import DownloadWarning

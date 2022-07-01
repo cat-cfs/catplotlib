@@ -13,7 +13,7 @@ from catplotlib.provider.spatialgcbmresultsprovider import SpatialGcbmResultsPro
 from catplotlib.animator.indicator.indicator import Indicator
 from catplotlib.animator.indicator.compositeindicator import CompositeIndicator
 from catplotlib.provider.units import Units
-from catplotlib.animator.animator import Animator
+from catplotlib.animator.boxlayoutanimator import BoxLayoutAnimator
 from catplotlib.util.utmzones import find_best_projection
 from catplotlib.util.tempfile import TempFileManager
 
@@ -98,5 +98,5 @@ if __name__ == "__main__":
                 # title=f"NBP in {tsa}"),
         ]
 
-        animator = Animator(disturbances, indicators, rf"c:\tmp\{tsa}")
+        animator = BoxLayoutAnimator(disturbances, indicators, rf"c:\tmp\{tsa}")
         animator.render(bounding_box, fps=1)

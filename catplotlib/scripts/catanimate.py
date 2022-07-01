@@ -12,7 +12,7 @@ from catplotlib.provider.spatialgcbmresultsprovider import SpatialGcbmResultsPro
 from catplotlib.animator.indicator.indicator import Indicator
 from catplotlib.spatial.layer import Layer
 from catplotlib.provider.units import Units
-from catplotlib.animator.animator import Animator
+from catplotlib.animator.boxlayoutanimator import BoxLayoutAnimator
 from catplotlib.spatial.boundingbox import BoundingBox
 from catplotlib.animator.color.colorizer import Colorizer
 from catplotlib.animator.color.quantilecolorizer import QuantileColorizer
@@ -124,7 +124,7 @@ def cli():
             colorizer=colorizer,
             interpretation=interpretation))
 
-    animator = Animator(disturbance_layers, indicators, args.output_path)
+    animator = BoxLayoutAnimator(disturbance_layers, indicators, args.output_path)
     animator.render(bounding_box)
 
 if __name__ == "__main__":
