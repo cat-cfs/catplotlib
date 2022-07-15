@@ -26,4 +26,4 @@ class Dashes:
         self._dashes = LoopingIterator(dashes)
 
     def next(self):
-        return self._dashes.next()
+        return next(self._dashes)

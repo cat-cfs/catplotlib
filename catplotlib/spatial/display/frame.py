@@ -1,6 +1,4 @@
 import matplotlib
-matplotlib.use("Agg")
-
 from PIL import Image
 from catplotlib.util.tempfile import TempFileManager
 Image.MAX_IMAGE_PIXELS = None

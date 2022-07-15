@@ -100,7 +100,7 @@ class QuantileColorizer(Colorizer):
 
     def _get_quantile_dataset(self, layers, filter=None):
         # Cap the maximum amount of data to load to avoid running out of memory.
-        data_points_per_layer = int(psutil.virtual_memory().available * 0.75 / (64 / 8) / len(layers) / 4)
+        data_points_per_layer = int(psutil.virtual_memory().total * 0.75 / (64 / 8) / len(layers) / 4)
 
         all_layer_data = np.empty(shape=(0, 0))
         for layer in layers:
@@ -119,9 +119,13 @@ class QuantileColorizer(Colorizer):
     def _load_layer_data(self, layer, filter=None):
         raster = gdal.Open(layer.path)
         raster_data = raster.GetRasterBand(1).ReadAsArray()
-        raster_data[raster_data == layer.nodata_value] = np.nan
         raster_data = raster_data.reshape(raster_data.size)
-        raster_data = raster_data[np.logical_not(np.isnan(raster_data))]
+        raster_data = raster_data[
+            (raster_data != layer.nodata_value) &
+            (~np.isnan(raster_data)) &
+            (raster_data != 0)
+        ]
+
         raster_data = raster_data[raster_data <= 0] if filter == Filter.Negative \
                  else raster_data[raster_data  > 0] if filter == Filter.Positive \
                  else raster_data

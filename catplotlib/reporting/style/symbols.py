@@ -32,4 +32,4 @@ class Symbols:
         self._symbols = LoopingIterator(symbols)
 
     def next(self):
-        return self._symbols.next()
+        return next(self._symbols)

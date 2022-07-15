@@ -222,7 +222,7 @@ class Layer:
 
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
-        raster_data = band.ReadAsArray()
+        raster_data = band.ReadAsArray().astype("float")
         nodata_value = self.nodata_value
 
         # First need to convert pixel values to absolute (as opposed to per hectare), in the correct

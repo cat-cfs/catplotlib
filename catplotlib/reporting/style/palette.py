@@ -9,10 +9,11 @@ class Palette:
             colors = color_parser(colors, lambda c:
                 f"#{''.join((hex(int(channel))[2:].ljust(2, '0') for channel in unlabel_rgb(c)))}")
 
-        self._colors = LoopingIterator(colors)
+        self._colors = colors
+        self._iter = LoopingIterator(colors)
 
     def next(self):
-        return self._colors.next()
+        return next(self._iter)
 
     def copy(self):
         return self.__class__(self._colors)
