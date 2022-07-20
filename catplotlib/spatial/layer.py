@@ -320,10 +320,14 @@ class Layer:
             driver = gdal.GetDriverByName("GTiff")
             original_raster = gdal.Open(self._path)
             area_raster_path = TempFileManager.mktmp(no_manual_cleanup=True)
-            area_raster = driver.CreateCopy(area_raster_path, original_raster, strict=0,
-                                            options=gdal_creation_options)
+            area_raster = driver.Create(
+                area_raster_path, original_raster.RasterXSize, original_raster.RasterYSize, 1,
+                gdal.GDT_Float32, gdal_creation_options)
 
+            area_raster.SetGeoTransform(original_raster.GetGeoTransform())
+            area_raster.SetProjection(original_raster.GetProjection())
             band = area_raster.GetRasterBand(1)
+            band.SetNoDataValue(self.nodata_value)
             for data, px_offset in self.area_grid():
                 band.WriteArray(data, *px_offset)
 
