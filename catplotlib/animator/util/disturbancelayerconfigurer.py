@@ -22,7 +22,7 @@ class DisturbanceLayerConfigurer:
         self._colorizer = colorizer or Colorizer()
         self._background_color = background_color
 
-    def configure(self, study_area_path, dist_type_filter=None):
+    def configure(self, study_area_path, dist_type_filter=None, dist_type_substitutions=None):
         '''
         Scans the specified study area JSON file for disturbance layers and returns
         a LayerCollection containing them.
@@ -30,9 +30,13 @@ class DisturbanceLayerConfigurer:
         Arguments:
         'study_area_path' -- the path to the study area file to scan.
         'dist_type_filter' -- only include disturbance types in this list (default: all).
+        'dist_type_substitutions' -- optional dictionary of original disturbance type names
+            to new names.
         '''
         if not os.path.exists(study_area_path):
             raise IOError(f"{study_area_path} not found.")
+
+        dist_type_substitutions = dist_type_substitutions or {}
 
         study_area = json.load(open(study_area_path, "rb"))
         layers = study_area["layers"]
@@ -62,7 +66,8 @@ class DisturbanceLayerConfigurer:
             disturbance_years = {attr["year"] for attr in layer_attribute_table.values()}
             for year in disturbance_years:
                 interpretation = {
-                    int(raster_value): attr["disturbance_type"]
+                    int(raster_value): dist_type_substitutions.get(
+                        attr["disturbance_type"], attr["disturbance_type"])
                     for raster_value, attr in layer_attribute_table.items()
                     if attr["year"] == year
                     and (attr["disturbance_type"] in dist_type_filter if dist_type_filter else True)}

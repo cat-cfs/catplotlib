@@ -33,8 +33,8 @@ class BasicResultsPlot(ResultsPlot):
         frames = []
         for i, year in enumerate(years):
             with self._figure(figsize=(10, 5)) as fig:
-                y_label = f"{self._title} ({self._units.value[2]})"
-                plt.xlabel("Years", fontweight="bold", fontsize=14)
+                y_label = f"{self._title} ({_(self._units.value[2])})"
+                plt.xlabel(_("Years"), fontweight="bold", fontsize=14)
                 plt.ylabel(y_label, fontweight="bold", fontsize=14)
                 plt.axhline(0, color="darkgray")
                 plt.plot(years, values, marker="o", linestyle="--", color="navy")

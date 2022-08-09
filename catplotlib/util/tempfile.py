@@ -48,8 +48,11 @@ class TempFileManager:
         'pattern' -- the file pattern to delete, or all files by default.
         '''
         for fn in glob(os.path.join(TempFileManager._name, pattern)):
-            if fn not in TempFileManager._no_cleanup:
-                os.remove(fn)
+            if fn not in TempFileManager._no_cleanup: 
+                try:
+                    os.remove(fn)
+                except:
+                    pass
 
     @staticmethod
     def mktmp(no_manual_cleanup=False, **kwargs):

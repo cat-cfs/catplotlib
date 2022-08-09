@@ -6,6 +6,7 @@ import logging
 import site
 from glob import glob
 from argparse import ArgumentParser
+from catplotlib.util import localization
 from catplotlib.animator.util.disturbancelayerconfigurer import DisturbanceLayerConfigurer
 from catplotlib.provider.sqlitegcbmresultsprovider import SqliteGcbmResultsProvider
 from catplotlib.provider.spatialgcbmresultsprovider import SpatialGcbmResultsProvider
@@ -39,6 +40,7 @@ def cli():
     parser.add_argument("--config", type=os.path.abspath, help="Path to animation config file", default="indicators.json")
     parser.add_argument("--disturbance_colors", type=os.path.abspath, help="Path to disturbance color config file")
     parser.add_argument("--filter_disturbances", action="store_true", help="Limit disturbances to types in color config file", default=False)
+    parser.add_argument("--locale", help="Switch locale for generated animations")
     args = parser.parse_args()
 
     indicator_config_path = None
@@ -57,6 +59,9 @@ def cli():
     for path in filter(lambda fn: fn, (args.study_area, args.spatial_results, args.db_results)):
         if not os.path.exists(path):
             sys.exit(f"{path} not found.")
+    
+    if args.locale:
+        localization.switch(args.locale)
 
     bounding_box_file = args.bounding_box
     if not bounding_box_file:
@@ -74,16 +79,26 @@ def cli():
 
     disturbance_colorizer = None
     disturbance_filter = []
+    disturbance_substitutions = {}
     if args.disturbance_colors:
         dist_color_config = json.load(open(args.disturbance_colors, "rb"))
-        colorizer_config = {tuple(item["disturbance_types"]): item["palette"] for item in dist_color_config}
+        colorizer_config = {
+            (item.get("label"), ) or tuple(item["disturbance_types"]):
+                item["palette"] for item in dist_color_config}
+
         disturbance_colorizer = CustomColorizer(colorizer_config)
-        if args.filter_disturbances:
-            for item in dist_color_config:
+        for item in dist_color_config:
+            label = item.get("label")
+            if label:
+                for dist_type in item["disturbance_types"]:
+                    disturbance_substitutions[dist_type] = label
+
+            if args.filter_disturbances:
                 disturbance_filter.extend(item["disturbance_types"])
 
     disturbance_configurer = DisturbanceLayerConfigurer(disturbance_colorizer)
-    disturbance_layers = disturbance_configurer.configure(args.study_area, disturbance_filter)
+    disturbance_layers = disturbance_configurer.configure(
+        args.study_area, disturbance_filter, disturbance_substitutions)
 
     indicators = []
     for indicator_config in json.load(open(indicator_config_path, "rb")):

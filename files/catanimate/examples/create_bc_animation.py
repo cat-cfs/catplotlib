@@ -1,4 +1,5 @@
 import mojadata.boundingbox as moja
+from dbfread import DBF
 from mojadata.cleanup import cleanup
 from mojadata.layer.vectorlayer import VectorLayer
 from mojadata.layer.attribute import Attribute
@@ -22,8 +23,8 @@ if __name__ == "__main__":
     draw = "draw001"
     scenario = "base"
 
-    layer_root = r"O:\GCBM\21_BC_wildfires\uncertainty_analysis\05_working\00_tile\layers\tiled"
-    output_root = r"O:\GCBM\21_BC_wildfires\uncertainty_analysis\05_working\02_gcbm_outputs"
+    layer_root = r"T:\GCBM\21_BC_wildfires\MC_Fire\05_working\00_tile\layers\tiled"
+    output_root = r"T:\GCBM\21_BC_wildfires\MC_Fire\05_working\02_gcbm_outputs"
     scenario_output = rf"{output_root}\bc_fire_uncertainty_harvest_base_fire_high_{draw}_{scenario}\output"
 
     # Gather up all the tiled disturbance layers into a single collection.
@@ -66,36 +67,36 @@ if __name__ == "__main__":
         with cleanup():
             moja_bbox.init()
             
-        tsa_bounding_box = BoundingBox(rf"{layer_root}\bounding_box.tiff")
+        tsa_bounding_box = BoundingBox("bounding_box.tiff")
         cropped_simulation_area = tsa_bounding_box.crop(BoundingBox(rf"{scenario_output}\age_1990.tif"))
         bounding_box = BoundingBox(cropped_simulation_area.path, find_best_projection(cropped_simulation_area))
 
         indicators = [
-            Indicator("Total Merch", (rf"{scenario_output}\Total_Merch_*.tif", Units.Tc),
-                      SpatialGcbmResultsProvider((rf"{scenario_output}\Total_Merch_*.tif", Units.Tc)),
-                      graph_units=Units.Mtc, map_units=Units.TcPerHa, title=f"NPP in {tsa}",
-                      colorizer=QuantileColorizer(palette="GnBu")),
-            # Indicator("NPP", rf"{scenario_output}\ha_NPP_*.tif",
-                      # SpatialGcbmResultsProvider(rf"{scenario_output}\ha_NPP_*.tif"),
-                      # graph_units=Units.MtcFlux, map_units=Units.TcPerHaFlux, title=f"NPP in {tsa}",
-                      # colorizer=QuantileColorizer(palette="GnBu")),
-            # Indicator("Aboveground Biomass", (rf"{scenario_output}\abs_AG_Biomass_C_*.tif", Units.Tc),
-                      # SpatialGcbmResultsProvider((rf"{scenario_output}\abs_AG_Biomass_C_*.tif", Units.Tc)),
-                      # graph_units=Units.Mtc, map_units=Units.TcPerHa,
-                      # title=f"Aboveground Biomass in {tsa}",
-                      # colorizer=QuantileColorizer(palette="GnBu")),
-            # CompositeIndicator(
-                # "NBP", {
-                    # rf"{scenario_output}\ha_NPP_*.tif"                         : BlendMode.Add,
-                    # rf"{scenario_output}\ha_Disturbance_Emissions_CO_*.tif"    : BlendMode.Subtract,
-                    # rf"{scenario_output}\ha_Disturbance_Emissions_CO2_*.tif"   : BlendMode.Subtract,
-                    # rf"{scenario_output}\ha_Disturbance_Emissions_CH4_*.tif"   : BlendMode.Subtract,
-                    # rf"{scenario_output}\ha_Rh_*.tif"                          : BlendMode.Subtract,
-                    # (rf"{scenario_output}\abs_All_to_Products_*.tif", Units.Tc): BlendMode.Subtract,
-                # },
-                # graph_units=Units.MtcFlux, map_units=Units.TcPerHaFlux,
-                # colorizer=QuantileColorizer(palette="Blues", negative_palette=["#FFDEAD", "#F4A460", "#D2691E"]),
-                # title=f"NBP in {tsa}"),
+             Indicator("Total Merch", (rf"{scenario_output}\Total_Merch_*.tif", Units.Tc),
+                       SpatialGcbmResultsProvider((rf"{scenario_output}\Total_Merch_*.tif", Units.Tc)),
+                       graph_units=Units.Mtc, map_units=Units.TcPerHa, title=f"NPP in {tsa}",
+                       colorizer=QuantileColorizer(palette="GnBu")),
+             Indicator("NPP", rf"{scenario_output}\ha_NPP_*.tif",
+                       SpatialGcbmResultsProvider(rf"{scenario_output}\ha_NPP_*.tif"),
+                       graph_units=Units.MtcFlux, map_units=Units.TcPerHaFlux, title=f"NPP in {tsa}",
+                       colorizer=QuantileColorizer(palette="GnBu")),
+             Indicator("Aboveground Biomass", (rf"{scenario_output}\abs_AG_Biomass_C_*.tif", Units.Tc),
+                       SpatialGcbmResultsProvider((rf"{scenario_output}\abs_AG_Biomass_C_*.tif", Units.Tc)),
+                       graph_units=Units.Mtc, map_units=Units.TcPerHa,
+                       title=f"Aboveground Biomass in {tsa}",
+                       colorizer=QuantileColorizer(palette="GnBu")),
+            CompositeIndicator(
+                "NBP", {
+                    rf"{scenario_output}\ha_NPP_*.tif"                         : BlendMode.Add,
+                    rf"{scenario_output}\ha_Disturbance_Emissions_CO_*.tif"    : BlendMode.Subtract,
+                    rf"{scenario_output}\ha_Disturbance_Emissions_CO2_*.tif"   : BlendMode.Subtract,
+                    rf"{scenario_output}\ha_Disturbance_Emissions_CH4_*.tif"   : BlendMode.Subtract,
+                    rf"{scenario_output}\ha_Rh_*.tif"                          : BlendMode.Subtract,
+                    (rf"{scenario_output}\abs_All_to_Products_*.tif", Units.Tc): BlendMode.Subtract,
+                },
+                graph_units=Units.MtcFlux, map_units=Units.TcPerHaFlux,
+                colorizer=QuantileColorizer(palette="Blues", negative_palette=["#FFDEAD", "#F4A460", "#D2691E"]),
+                title=f"NBP in {tsa}"),
         ]
 
         animator = BoxLayoutAnimator(disturbances, indicators, rf"c:\tmp\{tsa}")

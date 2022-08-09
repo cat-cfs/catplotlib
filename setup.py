@@ -4,7 +4,7 @@ from glob import glob
 
 setup(
     name="catplotlib",
-    version="2.7",
+    version="2.7.1",
     description="catplotlib",
     long_description="catplotlib",
     url="",
@@ -29,6 +29,8 @@ setup(
     extras_require={},
     package_data={},
     data_files=[
+        ("Tools/catplotlib/locales/en/LC_MESSAGES", glob("files/locales/en/LC_MESSAGES/*")),
+        ("Tools/catplotlib/locales/fr/LC_MESSAGES", glob("files/locales/fr/LC_MESSAGES/*")),
         ("Tools/catplotlib/catanimate", ["files/catanimate/indicators.json"]),
         ("Tools/catplotlib/catanimate/examples", [
             "files/examples/calculate_ghg.py",

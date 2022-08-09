@@ -1,6 +1,7 @@
 import os
 import imageio
 import logging
+from catplotlib.util import localization
 from catplotlib.animator.layout.boxlayout import BoxLayout
 from catplotlib.animator.legend import Legend
 from catplotlib.util.tempfile import TempFileManager
@@ -56,7 +57,7 @@ class BoxLayoutAnimator:
             if not start_year or not end_year:
                 start_year, end_year = indicator.simulation_years
 
-            units = indicator.map_units.value[2]
+            units = _(indicator.map_units.value[2])
             units_label = f" ({units})" if units else ""
             indicator_legend_title = f"{indicator.indicator}{units_label}"
             indicator_frames, indicator_legend = indicator.render_map_frames(
@@ -67,10 +68,10 @@ class BoxLayoutAnimator:
                     bounding_box, start_year, end_year)
 
             if include_single_views:
-                self._render_single_view(f"{indicator.title} (graph view)", graph_frames,
-                                         start_year, end_year, scalebar=False)
+                self._render_single_view(f"{indicator.title} " + _("(graph view)"),
+                                         graph_frames, start_year, end_year, scalebar=False)
 
-                self._render_single_view(f"{indicator.title} (map view)", indicator_frames,
+                self._render_single_view(f"{indicator.title} " + _("(map view)"), indicator_frames,
                                          start_year, end_year, indicator_legend, indicator_legend_title)
 
             left_legend_frame = Legend({None: disturbance_legend}).render()
@@ -86,17 +87,17 @@ class BoxLayoutAnimator:
                 disturbance_frame = self._find_frame(disturbance_frames, year)
                 indicator_frame = self._find_frame(indicator_frames, year)
                 graph_frame = self._find_frame(graph_frames, year) if has_graph_frames else None
-                title = f"{indicator.title}, Year: {year}"
+                title = f"{indicator.title}, " + _("Year") + f": {year}"
                 animation_frames.append(layout.render([
-                    [(disturbance_frame, "Disturbances"), (indicator_frame, indicator_legend_title)],
+                    [(disturbance_frame, _("Disturbances")), (indicator_frame, indicator_legend_title)],
                     [(left_legend_frame, None), (graph_frame, indicator.indicator), (right_legend_frame, None)]
                 ], title=title, dimensions=(3840, 2160)))
 
             self._create_animation(indicator.title, animation_frames, fps)
 
         if include_single_views:
-            self._render_single_view("Disturbances", disturbance_frames, start_year, end_year,
-                                     disturbance_legend, "Disturbances", fps=fps)
+            self._render_single_view(_("Disturbances"), disturbance_frames, start_year, end_year,
+                                     disturbance_legend, _("Disturbances"), fps=fps)
 
     def _render_single_view(self, title, frames, start_year, end_year,
                             legend=None, legend_title=None, scalebar=True, fps=1):
@@ -108,7 +109,7 @@ class BoxLayoutAnimator:
         animation_frames = []
         for year in range(start_year, end_year + 1):
             view_frame = self._find_frame(frames, year)
-            frame_title = f"{title}, Year: {year}"
+            frame_title = f"{title}, " + _("Year") + f": {year}"
             animation_frames.append(layout.render(
                 [[(view_frame, None)] + ([(legend_frame, None)] if legend else [])],
                 title=frame_title, dimensions=(3840, 2160)))

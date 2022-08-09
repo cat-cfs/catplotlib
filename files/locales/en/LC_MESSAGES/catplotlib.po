@@ -1,0 +1,50 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR ORGANIZATION
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2022-08-09 10:07-0700\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=cp1252\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: pygettext.py 1.5\n"
+
+
+msgid "(graph view)"
+msgstr "(graph view)"
+
+msgid "(map view)"
+msgstr "(map view)"
+
+msgid "Year"
+msgstr "Year"
+
+msgid "Years"
+msgstr "Years"
+
+msgid "Disturbances"
+msgstr "Disturbances"
+
+msgid "tC/yr"
+msgstr "tC/yr"
+
+msgid "KtC/yr"
+msgstr "KtC/yr"
+
+msgid "MtC/yr"
+msgstr "MtC/yr"
+
+msgid "tC/ha/yr"
+msgstr "tC/ha/yr"
+
+msgid "KtC/ha/yr"
+msgstr "KtC/ha/yr"
+
+msgid "MtC/ha/yr"
+msgstr "MtC/ha/yr"
+
