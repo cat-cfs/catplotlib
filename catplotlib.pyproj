@@ -41,6 +41,9 @@
     <Compile Include="catplotlib\util\cache.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="catplotlib\util\localization.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="catplotlib\util\loopingiterator.py" />
     <Compile Include="catplotlib\reporting\util\templatehelper.py" />
     <Compile Include="catplotlib\reporting\util\__init__.py" />
@@ -147,6 +150,11 @@
     <Folder Include="files\catreport\templates\basic_gcbm\" />
     <Folder Include="files\catreport\templates\multipage_gcbm\" />
     <Folder Include="files\catreport\templates\tabbed_gcbm\" />
+    <Folder Include="files\locales\" />
+    <Folder Include="files\locales\en\" />
+    <Folder Include="files\locales\en\LC_MESSAGES\" />
+    <Folder Include="files\locales\fr\" />
+    <Folder Include="files\locales\fr\LC_MESSAGES\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="files\catanimate\examples\disturbance_colors.json" />
@@ -168,6 +176,9 @@
     <Content Include="files\catreport\templates\tabbed_gcbm\report.md" />
     <Content Include="files\catreport\templates\tabbed_gcbm\_config.yml" />
     <Content Include="files\catreport\templates\tabbed_gcbm\_toc.yml" />
+    <Content Include="files\locales\catplotlib.pot" />
+    <Content Include="files\locales\en\LC_MESSAGES\catplotlib.po" />
+    <Content Include="files\locales\fr\LC_MESSAGES\catplotlib.po" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
