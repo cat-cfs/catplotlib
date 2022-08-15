@@ -1,3 +1,4 @@
+import locale
 import seaborn as sns
 
 class Colorizer:
@@ -54,7 +55,10 @@ class Colorizer:
                 range_min = min_value + i * bin_size
                 range_max = min_value + (i + 1) * bin_size
                 legend[(range_min, range_max)] = {
-                    "label": f"{self._format_value(range_min)} to {self._format_value(range_max)}",
+                    "label": (
+                        f"{self._format_value(range_min)} " +
+                        _("to") +
+                        f" {self._format_value(range_max)}"),
                     "color": next(colors)}
        
         return legend
@@ -71,7 +75,7 @@ class Colorizer:
         return legend
 
     def _format_value(self, value):
-        return f"{value:.2f}" if isinstance(value, float) else f"{value}"
+        return locale.format_string("%.2f", value) if isinstance(value, float) else f"{value}"
 
     def _create_colors(self, palette, n):
         rgb_pct_colors = sns.color_palette(palette, n)

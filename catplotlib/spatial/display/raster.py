@@ -1,16 +1,19 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-
 import os
 import cartopy.crs as ccrs
 import osr
 import gdal
 import numpy as np
+from pyproj.crs import CRS
+from pyproj.enums import WktVersion
 from matplotlib.colors import ListedColormap
 from matplotlib.colors import BoundaryNorm
 from cartopy.io import DownloadWarning
 from tempfile import TemporaryDirectory
+from catplotlib.util.config import gdal_memory_limit
+from catplotlib.util.config import gdal_creation_options
 
 import warnings
 warnings.simplefilter(action="ignore", category=DownloadWarning)
@@ -23,17 +26,17 @@ def show_raster_location(path, zoom=50):
         working_path = os.path.join(
             working_dir, f"{os.path.splitext(os.path.basename(path))[0]}.tif")
 
-        gdal.Warp(working_path, path, multithread=True, dstSRS="EPSG:3857")
+        crs = ccrs.Mercator.GOOGLE
+        proj_crs = CRS.from_dict(crs.proj4_params)
+        osr_crs = osr.SpatialReference()
+        osr_crs.ImportFromWkt(proj_crs.to_wkt(WktVersion.WKT1_GDAL))
+
+        gdal.SetCacheMax(gdal_memory_limit)
+        gdal.Warp(working_path, path, multithread=True, dstSRS=osr_crs,
+                  creationOptions=gdal_creation_options)
 
         ds = gdal.Open(working_path)
         gt = ds.GetGeoTransform()
-        proj = ds.GetProjection()
-
-        in_proj = osr.SpatialReference()
-        in_proj.ImportFromWkt(proj)
-
-        proj_cs = in_proj.GetAuthorityCode("PROJCS")
-        crs = ccrs.epsg(proj_cs)
 
         fig, ax = plt.subplots(subplot_kw={"projection": crs})
         fig2, ax2 = plt.subplots(subplot_kw={"projection": crs})

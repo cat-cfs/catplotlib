@@ -29,6 +29,9 @@ class CustomColorizer(Colorizer):
     def _create_interpreted_legend(self, layers, interpretation):
         color_map = {}
         for interpreted_values, palette in self._custom_colors.items():
+            if isinstance(interpreted_values, str):
+                interpreted_values = (interpreted_values,)
+
             colors = self._create_colors(palette, len(interpreted_values))
             for value in interpreted_values:
                 color_map[value] = next(colors)

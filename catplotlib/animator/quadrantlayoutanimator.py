@@ -87,7 +87,7 @@ class QuadrantLayoutAnimator:
                 disturbance_frame = self._find_frame(disturbance_frames, year)
                 indicator_frame = self._find_frame(indicator_frames, year)
                 graph_frame = self._find_frame(graph_frames, year) if has_graph_frames else None
-                title = f"{indicator.title}, " + _("Year") + f": {year}"
+                title = f"{indicator.title}, " + _("Year:") + f" {year}"
                 animation_frames.append(layout.render(
                     disturbance_frame, indicator_frame, graph_frame, legend_frame,
                     _("Disturbances"), indicator_legend_title, indicator.indicator,
@@ -111,7 +111,7 @@ class QuadrantLayoutAnimator:
         animation_frames = []
         for year in range(start_year, end_year + 1):
             view_frame = self._find_frame(frames, year)
-            frame_title = f"{title}, " + _("Year") + f": {year}"
+            frame_title = f"{title}, " + _("Year:") + f" {year}"
             animation_frames.append(layout.render(
                 view_frame, legend_frame, None, None,
                 title=frame_title, dimensions=(3840, 2160)))

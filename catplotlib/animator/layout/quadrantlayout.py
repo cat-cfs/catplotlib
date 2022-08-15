@@ -1,3 +1,4 @@
+import locale
 from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
@@ -154,7 +155,7 @@ class QuadrantLayout:
         scalebar_length_km = scalebar_length_px * scale / 1000
         scalebar_height = quadrant.height // 20
 
-        label = f"{scalebar_length_km:.2f} km"
+        label = locale.format_string("%.2f", scalebar_length_km) + " km"
         font = self._find_optimal_font_size(label, scalebar_length_px, scalebar_height * 0.75)
         label_width, label_height = font.getsize(label)
         label_x = quadrant.x_origin + quadrant.width - label_width

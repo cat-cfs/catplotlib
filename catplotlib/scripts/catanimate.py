@@ -83,7 +83,7 @@ def cli():
     if args.disturbance_colors:
         dist_color_config = json.load(open(args.disturbance_colors, "rb"))
         colorizer_config = {
-            (item.get("label"), ) or tuple(item["disturbance_types"]):
+            (item.get("label"),) or tuple(item["disturbance_types"]):
                 item["palette"] for item in dist_color_config}
 
         disturbance_colorizer = CustomColorizer(colorizer_config)

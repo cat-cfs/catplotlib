@@ -87,7 +87,7 @@ class BoxLayoutAnimator:
                 disturbance_frame = self._find_frame(disturbance_frames, year)
                 indicator_frame = self._find_frame(indicator_frames, year)
                 graph_frame = self._find_frame(graph_frames, year) if has_graph_frames else None
-                title = f"{indicator.title}, " + _("Year") + f": {year}"
+                title = f"{indicator.title}, " + _("Year:") + f" {year}"
                 animation_frames.append(layout.render([
                     [(disturbance_frame, _("Disturbances")), (indicator_frame, indicator_legend_title)],
                     [(left_legend_frame, None), (graph_frame, indicator.indicator), (right_legend_frame, None)]
@@ -109,7 +109,7 @@ class BoxLayoutAnimator:
         animation_frames = []
         for year in range(start_year, end_year + 1):
             view_frame = self._find_frame(frames, year)
-            frame_title = f"{title}, " + _("Year") + f": {year}"
+            frame_title = f"{title}, " + _("Year:") + f" {year}"
             animation_frames.append(layout.render(
                 [[(view_frame, None)] + ([(legend_frame, None)] if legend else [])],
                 title=frame_title, dimensions=(3840, 2160)))

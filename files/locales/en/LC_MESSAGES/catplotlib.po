@@ -21,8 +21,8 @@ msgstr "(graph view)"
 msgid "(map view)"
 msgstr "(map view)"
 
-msgid "Year"
-msgstr "Year"
+msgid "Year:"
+msgstr "Year:"
 
 msgid "Years"
 msgstr "Years"
@@ -48,3 +48,5 @@ msgstr "KtC/ha/yr"
 msgid "MtC/ha/yr"
 msgstr "MtC/ha/yr"
 
+msgid "to"
+msgstr "to"

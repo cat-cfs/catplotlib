@@ -1,3 +1,4 @@
+import locale
 import numpy as np
 from contextlib import contextmanager
 from matplotlib import image as mpimg
@@ -59,6 +60,9 @@ class BasicResultsPlot(ResultsPlot):
                 # Remove scientific notation.
                 ax = plt.gca()
                 ax.get_yaxis().get_major_formatter().set_useOffset(False)
+                ax.set_yticklabels([
+                    locale.format_string("%.2f", value)
+                    for value in ax.get_yticks()])
 
                 # Ensure integer tick labels.
                 ax.get_xaxis().set_major_locator(MaxNLocator(integer=True))
