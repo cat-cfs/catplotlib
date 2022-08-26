@@ -139,12 +139,11 @@ class BoxLayout:
             self._add_scalebar(base_image, box, working_frame.scale)
 
     def _add_scalebar(self, base_image, box, scale):
-        scalebar_length_px = box.width // 5
-        scalebar_length_km = scalebar_length_px * scale / 1000
+        scalebar_width_px, scalebar_width_m = self._find_optimal_scalebar_width(box, scale)
         scalebar_height = box.height // 20
-
-        label = locale.format_string("%.2f", scalebar_length_km) + " km"
-        font = self._find_optimal_font_size(label, scalebar_length_px, scalebar_height * 0.75)
+        
+        label = f"{int(scalebar_width_m / 1000)} km" if scalebar_width_m >= 1000 else f"{int(scalebar_width_m)} m"
+        font = self._find_optimal_font_size(label, scalebar_width_px, scalebar_height * 0.75)
         label_width, label_height = font.getsize(label)
         label_x = box.x_origin + box.width - label_width
         label_y = box.y_origin + box.height - label_height
@@ -152,11 +151,22 @@ class BoxLayout:
         draw = ImageDraw.Draw(base_image)
         draw.text((label_x, label_y), label, font=font, fill=(0, 0, 0, 128))
         line_width = scalebar_height - label_height
-        draw.line((box.x_origin + box.width - scalebar_length_px,
+        draw.line((box.x_origin + box.width - scalebar_width_px,
                    box.y_origin + box.height - label_height - line_width // 2,
                    box.x_origin + box.width,
                    box.y_origin + box.height - label_height - line_width // 2),
                   fill=(0, 0, 0, 128), width=line_width)
+
+    def _find_optimal_scalebar_width(self, box, scale):
+        max_width_px = box.width // 5
+        max_width_m = max_width_px * scale
+        segment_width_m = 10 ** (len(str(int(max_width_m))) - 1)
+        segments = max_width_m // segment_width_m
+        width_m = segments * segment_width_m
+        width_px = int(width_m / scale)
+        
+        return (width_px, width_m)
+
 
     def _find_optimal_font_size(self, text, max_width, max_height, font_face="arial.ttf"):
         font_size = 1
