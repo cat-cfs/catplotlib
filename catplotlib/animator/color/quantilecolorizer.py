@@ -103,7 +103,7 @@ class QuantileColorizer(Colorizer):
 
     def _get_quantile_dataset(self, layers, filter=None):
         # Cap the maximum amount of data to load to avoid running out of memory.
-        data_points_per_layer = int(psutil.virtual_memory().total * 0.75 / (64 / 8) / len(layers) / 4)
+        data_points_per_layer = int(psutil.virtual_memory().available * 0.75 / (64 / 8) / len(layers) / 4)
 
         all_layer_data = np.empty(shape=(0, 0))
         for layer in layers:

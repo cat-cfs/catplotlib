@@ -32,7 +32,7 @@ def show_raster_location(path, zoom=50):
         osr_crs.ImportFromWkt(proj_crs.to_wkt(WktVersion.WKT1_GDAL))
 
         gdal.SetCacheMax(gdal_memory_limit)
-        gdal.Warp(working_path, path, multithread=True, dstSRS=osr_crs,
+        gdal.Warp(working_path, path, dstSRS=osr_crs,
                   creationOptions=gdal_creation_options)
 
         ds = gdal.Open(working_path)
