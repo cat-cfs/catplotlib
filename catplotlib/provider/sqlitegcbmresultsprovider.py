@@ -68,7 +68,7 @@ class SqliteGcbmResultsProvider(ResultsProvider):
             f"""
             SELECT
                 years.year AS year,
-                COALESCE(SUM(i.{value_col}), 0) / {units_tc} / {area} AS "{indicator}"
+                COALESCE(SUM(i.{value_col}), 0) * {units_tc} / {area} AS "{indicator}"
             FROM (SELECT DISTINCT year FROM v_age_indicators ORDER BY year) AS years
             LEFT JOIN {table} i
                 ON years.year = i.year

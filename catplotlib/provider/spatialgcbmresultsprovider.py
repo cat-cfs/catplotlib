@@ -39,8 +39,6 @@ class SpatialGcbmResultsProvider(ResultsProvider):
         if not start_year or not end_year:
             start_year, end_year = self.simulation_years
 
-        _, units_tc, _ = units.value
-
         result_years = list(range(start_year, end_year + 1))
         working_layers = [layer for layer in layers if layer.year in result_years]
         with Pool() as pool:
