@@ -8,6 +8,7 @@ from catplotlib.provider.spatialgcbmresultsprovider import SpatialGcbmResultsPro
 from catplotlib.animator.plot.basicresultsplot import BasicResultsPlot
 from catplotlib.spatial.layercollection import LayerCollection
 from catplotlib.spatial.layer import Layer
+from catplotlib.util.config import pool_workers
 
 class CompositeIndicator(Indicator):
     '''
@@ -90,7 +91,7 @@ class CompositeIndicator(Indicator):
             pattern, units = pattern
 
         layers = []
-        with Pool() as pool:
+        with Pool(pool_workers) as pool:
             tasks = []
             for layer_path in glob(pattern):
                 year = os.path.splitext(layer_path)[0][-4:]

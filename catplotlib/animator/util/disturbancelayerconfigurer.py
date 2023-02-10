@@ -22,7 +22,8 @@ class DisturbanceLayerConfigurer:
         self._colorizer = colorizer or Colorizer()
         self._background_color = background_color
 
-    def configure(self, study_area_path, dist_type_filter=None, dist_type_substitutions=None):
+    def configure(self, study_area_path, dist_type_filter=None, dist_type_substitutions=None,
+                  search_prefix=None, min_year=None, max_year=None):
         '''
         Scans the specified study area JSON file for disturbance layers and returns
         a LayerCollection containing them.
@@ -32,6 +33,9 @@ class DisturbanceLayerConfigurer:
         'dist_type_filter' -- only include disturbance types in this list (default: all).
         'dist_type_substitutions' -- optional dictionary of original disturbance type names
             to new names.
+        'search_prefix' -- only include disturbance layers with name matching this prefix
+        'min_year' -- only include disturbance layers with year greater than or equal to this
+        'max_year' -- only include disturbance layers with year less than or equal to this
         '''
         if not os.path.exists(study_area_path):
             raise IOError(f"{study_area_path} not found.")
@@ -41,7 +45,8 @@ class DisturbanceLayerConfigurer:
         study_area = json.load(open(study_area_path, "rb"))
         layers = study_area["layers"]
         disturbance_layers = [layer for layer in study_area["layers"]
-                              if "disturbance" in layer.get("tags", [])]
+                              if "disturbance" in layer.get("tags", [])
+                              and layer["name"].startswith(search_prefix or "")]
         
         layer_collection = LayerCollection(colorizer=self._colorizer,
                                            background_color=self._background_color)
@@ -70,6 +75,8 @@ class DisturbanceLayerConfigurer:
                         attr["disturbance_type"], attr["disturbance_type"])
                     for raster_value, attr in layer_attribute_table.items()
                     if attr["year"] == year
+                    and (int(attr["year"]) >= min_year if min_year else True)
+                    and (int(attr["year"]) <= max_year if max_year else True)
                     and (attr["disturbance_type"] in dist_type_filter if dist_type_filter else True)}
 
                 if interpretation:

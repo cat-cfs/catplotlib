@@ -9,6 +9,7 @@ from catplotlib.spatial.layer import Layer
 from catplotlib.provider.units import Units
 from catplotlib.provider.resultsprovider import ResultsProvider
 from catplotlib.util.utmzones import find_best_projection
+from catplotlib.util.config import pool_workers
 
 class SpatialGcbmResultsProvider(ResultsProvider):
     '''
@@ -41,7 +42,7 @@ class SpatialGcbmResultsProvider(ResultsProvider):
 
         result_years = list(range(start_year, end_year + 1))
         working_layers = [layer for layer in layers if layer.year in result_years]
-        with Pool() as pool:
+        with Pool(pool_workers) as pool:
             if bounding_box:
                 working_layers = pool.map(bounding_box.crop, working_layers)
 

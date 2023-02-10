@@ -11,6 +11,7 @@ from catplotlib.animator.color.colorizer import Colorizer
 from catplotlib.spatial.display.frame import Frame
 from catplotlib.util.config import gdal_creation_options
 from catplotlib.util.config import gdal_memory_limit
+from catplotlib.util.config import pool_workers
 from catplotlib.util.tempfile import TempFileManager
 
 class LayerCollection:
@@ -120,6 +121,28 @@ class LayerCollection:
 
         return blended_collection
 
+    def normalize(self):
+        '''
+        For collections of interpreted layers where pixel values are associated
+        with an attribute table, normalize the pixel values across all of the
+        layers so that the same pixel values always point to the same attribute
+        values.
+
+        Returns a new LayerCollection where the pixel values have been made
+        consistent across all layers.
+        '''
+        interpreted = any((layer.has_interpretation for layer in self.layers))
+        if not interpreted:
+            return self
+
+        with Pool(pool_workers) as pool:
+            unique_values = sorted(set(chain(*(layer.interpretation.values() for layer in self.layers))))
+            common_interpretation = {i: value for i, value in enumerate(unique_values, 1)}
+            tasks = [pool.apply_async(layer.reclassify, (common_interpretation,)) for layer in self.layers]
+            reclassified_layers = [task.get() for task in tasks]
+
+            return LayerCollection(reclassified_layers, self._background_color, self._colorizer)
+
     def render(self, bounding_box=None, start_year=None, end_year=None, units=Units.TcPerHa):
         '''
         Renders the collection of layers into colorized Frame objects organized
@@ -140,7 +163,7 @@ class LayerCollection:
         Returns a list of rendered Frame objects and a legend (dict) describing
         the colors.
         '''
-        with Pool() as pool:
+        with Pool(pool_workers) as pool:
             layer_years = {layer.year for layer in self._layers}
             render_years = set(range(start_year, end_year + 1)) if start_year and end_year else layer_years
             working_layers = [layer for layer in self._layers if layer.year in render_years]
