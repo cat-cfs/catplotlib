@@ -1,7 +1,6 @@
-import os
 import gdal
 import numpy as np
-from osgeo.scripts import gdal_calc
+from mojadata.util.gdal_calc import Calc
 from catplotlib.spatial.layer import Layer
 from catplotlib.util.config import gdal_creation_options
 from catplotlib.util.config import gdal_memory_limit
@@ -97,9 +96,8 @@ class BoundingBox(Layer):
         # Clip to bounding box nodata mask.
         calc = "A * (B != {0}) + ((B == {0}) * {1})".format(self.nodata_value, layer.nodata_value)
         output_path = TempFileManager.mktmp(suffix=".tif")
-        gdal_calc.Calc(calc, output_path, layer.nodata_value, quiet=True,
-                       creation_options=gdal_creation_options,
-                       overwrite=True, A=tmp_path, B=self.path)
+        Calc(calc, output_path, layer.nodata_value, quiet=True, creation_options=gdal_creation_options,
+             overwrite=True, A=tmp_path, B=self.path)
 
         cropped_layer = Layer(output_path, layer.year, layer.interpretation, layer.units, self._cache)
 

@@ -8,7 +8,7 @@ import numpy as np
 from itertools import chain
 from enum import Enum
 from string import ascii_uppercase
-from osgeo.scripts import gdal_calc
+from mojadata.util.gdal_calc import Calc
 from geopy.distance import distance
 from catplotlib.util.config import gdal_creation_options
 from catplotlib.util.config import gdal_memory_limit
@@ -182,9 +182,8 @@ class Layer:
                 f"+ ((A == {self.nodata_value}) * {self.nodata_value})"))
 
         if simple_conversion_calc:
-            gdal_calc.Calc(simple_conversion_calc, output_path, self.nodata_value, quiet=True,
-                           creation_options=gdal_creation_options,
-                           overwrite=True, A=self.path)
+            Calc(simple_conversion_calc, output_path, self.nodata_value, quiet=True,
+                 creation_options=gdal_creation_options, overwrite=True, A=self.path)
 
             return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
 
@@ -195,9 +194,8 @@ class Layer:
             f"* (A != {self.nodata_value})",
             f"+ ((A == {self.nodata_value}) * {self.nodata_value})"))
 
-        gdal_calc.Calc(calc, output_path, self.nodata_value, quiet=True,
-                       creation_options=gdal_creation_options,
-                       overwrite=True, A=self.path, B=area_raster_path)
+        Calc(calc, output_path, self.nodata_value, quiet=True, creation_options=gdal_creation_options,
+             overwrite=True, A=self.path, B=area_raster_path)
         
         return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
 
@@ -457,9 +455,8 @@ class Layer:
         logging.debug(f"Blending {calc_args} using: {calc}")
         output_path = TempFileManager.mktmp(suffix=".tif")
         gdal.SetCacheMax(gdal_memory_limit)
-        gdal_calc.Calc(calc, output_path, self.nodata_value, quiet=True,
-                       creation_options=gdal_creation_options,
-                       overwrite=True, A=self.path, **calc_args)
+        Calc(calc, output_path, self.nodata_value, quiet=True, creation_options=gdal_creation_options,
+             overwrite=True, hideNoData=True, A=self.path, **calc_args)
 
         return Layer(output_path, self._year, self._interpretation, self._units, cache=self._cache)
 
