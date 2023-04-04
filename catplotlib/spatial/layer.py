@@ -122,8 +122,11 @@ class Layer:
         if metres:
             pixel_size_m = abs(float(self.info["geoTransform"][1]))
         else:
-            origin_x, pixel_size, _, origin_y, *_ = self.info["geoTransform"]
-            pixel_size_m = distance((origin_y, origin_x), (origin_y, origin_x + pixel_size)).m
+            bounds = self.info["cornerCoordinates"]
+            center_x = (bounds["lowerRight"][0] - bounds["upperLeft"][0]) / 2
+            center_y = (bounds["lowerRight"][1] - bounds["upperLeft"][1]) / 2
+            _, px_width, *_ = self.info["geoTransform"]
+            pixel_size_m = distance((center_y, center_x), (center_y, center_x + px_width)).m
 
         return pixel_size_m
 
@@ -362,7 +365,7 @@ class Layer:
         # Guard against conflicts between original and reclassified pixel values
         # before updating anything.
         collision_offset = max(chain(self._interpretation.keys(), new_interpretation.keys()), default=0) + 1
-        raster_data[raster_data != nodata_value] += collision_offset
+        raster_data[raster_data != band.GetNoDataValue()] += collision_offset
 
         inverse_new_interpretation = {v: k for k, v in new_interpretation.items()}
         for original_pixel_value, interpreted_value in self._interpretation.items():
