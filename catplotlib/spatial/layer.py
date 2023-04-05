@@ -365,7 +365,7 @@ class Layer:
         # Guard against conflicts between original and reclassified pixel values
         # before updating anything.
         collision_offset = max(chain(self._interpretation.keys(), new_interpretation.keys()), default=0) + 1
-        raster_data[raster_data != band.GetNoDataValue()] += collision_offset
+        raster_data[raster_data != nodata_value] += collision_offset
 
         inverse_new_interpretation = {v: k for k, v in new_interpretation.items()}
         for original_pixel_value, interpreted_value in self._interpretation.items():
