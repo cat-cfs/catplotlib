@@ -1,5 +1,5 @@
 import utm
-import gdal
+from mojadata.util import gdal
 
 utm_zone_projections = {
      7: "EPSG:3154",

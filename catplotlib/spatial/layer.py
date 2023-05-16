@@ -1,13 +1,11 @@
-import gdal
 import json
 import logging
-import os
 import subprocess
-import math
 import numpy as np
 from itertools import chain
 from enum import Enum
 from string import ascii_uppercase
+from mojadata.util import gdal
 from mojadata.util.gdal_calc import Calc
 from geopy.distance import distance
 from catplotlib.util.config import gdal_creation_options

@@ -1,13 +1,11 @@
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import os
 import cartopy.crs as ccrs
-import osr
-import gdal
-import numpy as np
 from pyproj.crs import CRS
 from pyproj.enums import WktVersion
+from mojadata.util import osr
+from mojadata.util import gdal
 from matplotlib.colors import ListedColormap
 from matplotlib.colors import BoundaryNorm
 from cartopy.io import DownloadWarning

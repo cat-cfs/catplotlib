@@ -1,4 +1,3 @@
-import gdal
 import os
 import sys
 import logging
@@ -6,6 +5,7 @@ from glob import glob
 from aenum import extend_enum
 from multiprocessing import Pool
 from argparse import ArgumentParser
+from mojadata.util import gdal
 from catplotlib.spatial.layer import Layer
 from catplotlib.spatial.layer import BlendMode
 from catplotlib.spatial.layercollection import LayerCollection

@@ -2,12 +2,12 @@
 import warnings
 warnings.simplefilter("ignore")
 
-import gdal
 import psutil
 import numpy as np
 import seaborn as sns
 from enum import Enum
 from pysal.esda.mapclassify import Quantiles
+from mojadata.util import gdal
 from catplotlib.animator.color.colorizer import Colorizer
 from catplotlib.util.config import gdal_memory_limit
 

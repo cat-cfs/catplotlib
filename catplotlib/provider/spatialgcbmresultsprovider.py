@@ -1,6 +1,4 @@
 import os
-import sqlite3
-import gdal
 import pandas as pd
 from multiprocessing import Pool
 from glob import glob
@@ -8,7 +6,6 @@ from collections import OrderedDict
 from catplotlib.spatial.layer import Layer
 from catplotlib.provider.units import Units
 from catplotlib.provider.resultsprovider import ResultsProvider
-from catplotlib.util.utmzones import find_best_projection
 from catplotlib.util.config import pool_workers
 
 class SpatialGcbmResultsProvider(ResultsProvider):

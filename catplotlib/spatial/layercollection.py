@@ -1,9 +1,9 @@
 import os
-import gdal
 import shutil
 from itertools import chain
 from collections import defaultdict
 from multiprocessing import Pool
+from mojadata.util import gdal
 from catplotlib.spatial.layer import Layer
 from catplotlib.provider.units import Units
 from catplotlib.spatial.layer import BlendMode
