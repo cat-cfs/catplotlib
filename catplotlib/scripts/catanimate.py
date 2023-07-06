@@ -1,6 +1,5 @@
 import os
 import sys
-import sqlite3
 import json
 import logging
 import site
@@ -32,9 +31,9 @@ def cli():
     TempFileManager.delete_on_exit()
 
     parser = ArgumentParser(description="Create GCBM results animations")
-    parser.add_argument("study_area", type=os.path.abspath, help="Path to study area file for GCBM spatial input")
-    parser.add_argument("spatial_results", type=os.path.abspath, help="Path to GCBM spatial output")
     parser.add_argument("output_path", type=os.path.abspath, help="Directory to write animations to")
+    parser.add_argument("spatial_results", type=os.path.abspath, help="Path to GCBM spatial output")
+    parser.add_argument("study_area", nargs="+", help="Path to study area file(s) for GCBM spatial input")
     parser.add_argument("--db_results", type=os.path.abspath, help="Path to compiled GCBM results database")
     parser.add_argument("--bounding_box", type=os.path.abspath, help="Bounding box defining animation area")
     parser.add_argument("--config", type=os.path.abspath, help="Path to animation config file", default="indicators.json")
@@ -56,7 +55,7 @@ def cli():
     if not indicator_config_path:
         sys.exit("Indicator configuration file not found.")
 
-    for path in filter(lambda fn: fn, (args.study_area, args.spatial_results, args.db_results)):
+    for path in filter(lambda fn: fn, (*args.study_area, args.spatial_results, args.db_results)):
         if not os.path.exists(path):
             sys.exit(f"{path} not found.")
     
@@ -68,11 +67,11 @@ def cli():
         # Try to find a suitable bounding box: the tiler bounding box is usually
         # the only tiff file in the study area directory without "moja" in its name;
         # if that isn't found, use the first tiff file in the study area dir.
-        study_area_dir = os.path.dirname(args.study_area)
+        study_area_dir = os.path.dirname(args.study_area[0])
         bounding_box_candidates = glob(os.path.join(study_area_dir, "*.tif['', 'f']"))
         bounding_box_file = next(filter(lambda tiff: "moja" not in tiff, bounding_box_candidates), None)
         if not bounding_box_file:
-            bounding_box_file = bounding_box_candidates[0]
+            bounding_box_file = os.path.abspath(bounding_box_candidates[0])
 
     logging.info(f"Using bounding box: {bounding_box_file}")
     bounding_box = BoundingBox(bounding_box_file, find_best_projection(Layer(bounding_box_file, 0)))
@@ -97,8 +96,15 @@ def cli():
                 disturbance_filter.extend(item["disturbance_types"])
 
     disturbance_configurer = DisturbanceLayerConfigurer(disturbance_colorizer)
-    disturbance_layers = disturbance_configurer.configure(
-        args.study_area, disturbance_filter, disturbance_substitutions)
+    disturbance_layers = None
+    for study_area in args.study_area:
+        study_area_disturbance_layers = disturbance_configurer.configure(
+            os.path.abspath(study_area), disturbance_filter, disturbance_substitutions)
+
+        if disturbance_layers is None:
+            disturbance_layers = study_area_disturbance_layers
+        else:
+            disturbance_layers.merge(study_area_disturbance_layers)
 
     indicators = []
     for indicator_config in json.load(open(indicator_config_path, "rb")):

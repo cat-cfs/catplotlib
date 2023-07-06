@@ -3,3 +3,5 @@ __pycache__
 build
 dist
 gcbmanimation.egg-info
+/.vs/catplotlib/FileContentIndex/*.vsidx
+/.vs/catplotlib/FileContentIndex/*.lock

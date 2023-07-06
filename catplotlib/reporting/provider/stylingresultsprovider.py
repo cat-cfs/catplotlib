@@ -1,9 +1,7 @@
-import os
-import sqlite3
-import pandas as pd
 from catplotlib.provider.resultsprovider import ResultsProvider
 from catplotlib.provider.sqlitegcbmresultsprovider import SqliteGcbmResultsProvider
 from catplotlib.provider.units import Units
+from catplotlib.reporting.style.stylemanager import StyleManager
 
 class StylingResultsProvider(ResultsProvider):
     '''

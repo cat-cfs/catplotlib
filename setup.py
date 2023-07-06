@@ -4,7 +4,7 @@ from glob import glob
 
 setup(
     name="catplotlib",
-    version="2.9.0",
+    version="3.0.0",
     description="catplotlib",
     long_description="catplotlib",
     url="",
@@ -24,9 +24,10 @@ setup(
         "numpy", "seaborn", "imageio", "imageio-ffmpeg",
         "pillow", "geopy", "utm", "jupyter-book", "sphinxcontrib-bibtex",
         "aenum", "pyepsg", "pyppeteer", "plotly",
-        "pysal<=1.15.0", "mojadata>=4.0.6",
+        "pysal<=1.15.0; python_version=='3.7'", "pysal; python_version>'3.7'",
+        "mojadata>=4.0.6",
         "shapely>=1.8.1, <=1.8.2", # cartopy (any ver) requires this version of shapely
-        "matplotlib==3.5.2", # cartopy < 0.21 requires this version of matplotlib
+        "matplotlib==3.5.2; python_version=='3.7'", "matplotlib; python_version>'3.7'", # cartopy < 0.21 requires matplotlib 3.5.2
         "cartopy==0.18.0; python_version=='3.7'", "cartopy; python_version>'3.7'",
         "pyproj==3.2.1; python_version=='3.7'", "pyproj; python_version>'3.7'",
     ],
