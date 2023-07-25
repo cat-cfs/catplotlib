@@ -1,5 +1,6 @@
 import os
 import json
+import sqlite3
 from glob import glob
 from catplotlib.animator.color.colorizer import Colorizer
 from catplotlib.spatial.layer import Layer
@@ -33,9 +34,9 @@ class DisturbanceLayerConfigurer:
         'dist_type_filter' -- only include disturbance types in this list (default: all).
         'dist_type_substitutions' -- optional dictionary of original disturbance type names
             to new names.
-        'search_prefix' -- only include disturbance layers with name matching this prefix
-        'min_year' -- only include disturbance layers with year greater than or equal to this
-        'max_year' -- only include disturbance layers with year less than or equal to this
+        'search_prefix' -- only include disturbance layers with name matching this prefix.
+        'min_year' -- only include disturbance layers with year greater than or equal to this.
+        'max_year' -- only include disturbance layers with year less than or equal to this.
         '''
         if not os.path.exists(study_area_path):
             raise IOError(f"{study_area_path} not found.")
@@ -81,6 +82,49 @@ class DisturbanceLayerConfigurer:
 
                 if interpretation:
                     layer_collection.append(Layer(layer_tif, year, interpretation, Units.Blank))
+
+        return layer_collection
+
+    def configure_output(self, spatial_results, db_results, dist_type_filter=None,
+                         dist_type_substitutions=None, min_year=None, max_year=None):
+        '''
+        Uses output of GCBM's optional disturbance monitor module for the disturbances in the
+        animation.
+
+        Arguments:
+        'spatial_results' -- the path to the simulation's spatial output directory.
+        'db_results' -- the path to the simulation's compiled results database.
+        'dist_type_filter' -- only include disturbance types in this list (default: all).
+        'dist_type_substitutions' -- optional dictionary of original disturbance type names
+            to new names.
+        'min_year' -- only include disturbance layers with year greater than or equal to this.
+        'max_year' -- only include disturbance layers with year less than or equal to this.
+        '''
+        if not db_results or not os.path.exists(db_results):
+            raise IOError(f"Compiled results database not specified or not found.")
+
+        conn = sqlite3.connect(db_results)
+        layer_attribute_table = {
+            int(k): v for (k, v) in conn.execute(
+                """
+                SELECT DISTINCT disturbance_code, disturbance_type
+                FROM v_total_disturbed_areas
+                """
+            ) if (v in dist_type_filter if dist_type_filter else True)
+        }
+        
+        layer_collection = LayerCollection(colorizer=self._colorizer,
+                                           background_color=self._background_color)
+
+        for layer in glob(os.path.join(spatial_results, "current_disturbance*.ti*[!.]")):
+            year = int(os.path.splitext(os.path.basename(layer))[0].split("_")[-1])
+            if not (
+                (year >= min_year if min_year else True)
+                and (year <= max_year if max_year else True)
+            ):
+                continue
+
+            layer_collection.append(Layer(layer, year, layer_attribute_table, Units.Blank))
 
         return layer_collection
 

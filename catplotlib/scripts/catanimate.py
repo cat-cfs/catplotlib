@@ -97,14 +97,21 @@ def cli():
 
     disturbance_configurer = DisturbanceLayerConfigurer(disturbance_colorizer)
     disturbance_layers = None
-    for study_area in args.study_area:
-        study_area_disturbance_layers = disturbance_configurer.configure(
-            os.path.abspath(study_area), disturbance_filter, disturbance_substitutions)
+    if len(glob(os.path.join(args.spatial_results, "current_disturbance*.ti*[!.]"))):
+        # Use GCBM's record of which disturbance events happened.
+        logging.info("Using output disturbances.")
+        disturbance_layers = disturbance_configurer.configure_output(
+            args.spatial_results, args.db_results, disturbance_filter, disturbance_substitutions)
+    else:
+        logging.info("Using input disturbances.")
+        for study_area in args.study_area:
+            study_area_disturbance_layers = disturbance_configurer.configure(
+                os.path.abspath(study_area), disturbance_filter, disturbance_substitutions)
 
-        if disturbance_layers is None:
-            disturbance_layers = study_area_disturbance_layers
-        else:
-            disturbance_layers.merge(study_area_disturbance_layers)
+            if disturbance_layers is None:
+                disturbance_layers = study_area_disturbance_layers
+            else:
+                disturbance_layers.merge(study_area_disturbance_layers)
 
     indicators = []
     for indicator_config in json.load(open(indicator_config_path, "rb")):
