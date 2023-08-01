@@ -2,11 +2,16 @@ import os
 import pandas as pd
 from multiprocessing import Pool
 from glob import glob
+from collections import defaultdict
 from collections import OrderedDict
 from catplotlib.spatial.layer import Layer
 from catplotlib.provider.units import Units
 from catplotlib.provider.resultsprovider import ResultsProvider
 from catplotlib.util.config import pool_workers
+from catplotlib.util.config import gdal_creation_options
+from catplotlib.util.config import gdal_memory_limit
+from catplotlib.util.tempfile import TempFileManager
+from mojadata.util import gdal
 
 class SpatialGcbmResultsProvider(ResultsProvider):
     '''
@@ -34,6 +39,7 @@ class SpatialGcbmResultsProvider(ResultsProvider):
                           units=Units.Tc, bounding_box=None, **kwargs):
         '''See GcbmResultsProvider.get_annual_result.'''
         layers = self._layers or self._find_layers()
+
         if not start_year or not end_year:
             start_year, end_year = self.simulation_years
 
@@ -58,21 +64,35 @@ class SpatialGcbmResultsProvider(ResultsProvider):
             return pd.DataFrame(data)
 
     def _find_layers(self):
-        pattern = self._pattern
+        layers_by_year = defaultdict(list)
         units = Units.TcPerHa
         if isinstance(self._pattern, tuple):
             pattern, units = self._pattern
+            
+        for pattern in ([pattern] if isinstance(pattern, str) else pattern):
+            for layer_path in glob(pattern):
+                year = os.path.splitext(layer_path)[0][-4:]
+                layer = Layer(layer_path, year, units=units)
+                layers_by_year[layer.year].append(layer)
 
-        layers = []
-        for layer_path in glob(pattern):
-            year = os.path.splitext(layer_path)[0][-4:]
-            layer = Layer(layer_path, year, units=units)
-            layers.append(layer)
+        if not layers_by_year:
+            raise IOError(f"No spatial output found for pattern: {self._pattern}")
 
-        if not layers:
-            raise IOError(f"No spatial output found for pattern: {pattern}")
+        # Merge the layers together by year if this is a fragmented collection of layers.
+        working_layers = list(map(self._merge_layers, layers_by_year.values()))
 
-        return layers
+        return working_layers
+
+    def _merge_layers(self, layers):
+        if len(layers) == 1:
+            return layers[0]
+
+        output_path = TempFileManager.mktmp(suffix=".tif")
+        gdal.SetCacheMax(gdal_memory_limit)
+        gdal.Warp(output_path, [layer.path for layer in layers], creationOptions=gdal_creation_options)
+        merged_layer = Layer(output_path, layers[0].year, layers[0].interpretation, layers[0].units)
+
+        return merged_layer
 
     def _find_year(self, layers, year):
         return next(filter(lambda layer: layer.year == year, layers), None)

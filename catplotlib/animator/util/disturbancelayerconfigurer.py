@@ -105,7 +105,7 @@ class DisturbanceLayerConfigurer:
 
         conn = sqlite3.connect(db_results)
         layer_attribute_table = {
-            int(k): v for (k, v) in conn.execute(
+            int(k): dist_type_substitutions.get(v, v) for (k, v) in conn.execute(
                 """
                 SELECT DISTINCT disturbance_code, disturbance_type
                 FROM v_total_disturbed_areas

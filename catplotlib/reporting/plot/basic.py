@@ -1,4 +1,4 @@
-import matplotlib
+from catplotlib.util import matplotlib
 import matplotlib.pyplot as plt
 from catplotlib.reporting.style.symbols import Symbol
 from catplotlib.reporting.style.dashes import Dash

@@ -1,5 +1,6 @@
 import math
 from contextlib import contextmanager
+from catplotlib.util import matplotlib
 from matplotlib import pyplot as plt
 from catplotlib.util.tempfile import TempFileManager
 from catplotlib.spatial.display.frame import Frame

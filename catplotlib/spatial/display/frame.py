@@ -1,4 +1,4 @@
-import matplotlib
+from catplotlib.util import matplotlib
 from PIL import Image
 from catplotlib.util.tempfile import TempFileManager
 Image.MAX_IMAGE_PIXELS = None

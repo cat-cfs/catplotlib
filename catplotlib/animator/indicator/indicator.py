@@ -116,11 +116,13 @@ class Indicator:
         if isinstance(self._layer_pattern, tuple):
             pattern, units = self._layer_pattern
 
+        patterns = [pattern] if isinstance(pattern, str) else pattern
         layers = LayerCollection(background_color=self._background_color, colorizer=self._colorizer)
-        for layer_path in glob(pattern):
-            year = os.path.splitext(layer_path)[0][-4:]
-            layer = Layer(layer_path, year, units=units, interpretation=self._interpretation)
-            layers.append(layer)
+        for layer_pattern in patterns:
+            for layer_path in glob(layer_pattern):
+                year = os.path.splitext(layer_path)[0][-4:]
+                layer = Layer(layer_path, year, units=units, interpretation=self._interpretation)
+                layers.append(layer)
 
         if layers.empty:
             raise IOError(f"No spatial output found for pattern: {self._layer_pattern}")

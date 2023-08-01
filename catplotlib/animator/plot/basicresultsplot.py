@@ -1,6 +1,7 @@
 import locale
 import numpy as np
 from contextlib import contextmanager
+from catplotlib.util import matplotlib
 from matplotlib import image as mpimg
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
