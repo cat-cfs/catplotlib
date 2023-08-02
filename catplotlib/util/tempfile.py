@@ -17,8 +17,11 @@ class NamedTemporaryDirectory:
 
     @classmethod
     def _cleanup(cls, name, warn_message):
-        shutil.rmtree(name)
-        warnings.warn(warn_message, ResourceWarning)
+        try:
+            shutil.rmtree(name)
+            warnings.warn(warn_message, ResourceWarning)
+        except:
+            pass
 
     def __repr__(self):
         return "<{} {!r}>".format(self.__class__.__name__, self.name)
