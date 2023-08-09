@@ -191,14 +191,19 @@ def load_spatial_results_config(spatial_results_config_path):
 def cli():
     parser = ArgumentParser(description="Create GCBM results animations")
     parser.add_argument("output_path", type=os.path.abspath, help="Directory to write animations to")
-    parser.add_argument("--spatial_results_config", type=os.path.abspath, help="Path to JSON file describing GCBM spatial output")
+    parser.add_argument("--spatial_results_config", type=os.path.abspath, help=(
+        "Path to JSON file describing GCBM spatial output instead of using "
+        "spatial_results, study_area, and db_results args"))
     parser.add_argument("--spatial_results", type=os.path.abspath, help="Path to GCBM spatial output")
     parser.add_argument("--study_area", nargs="*", help="Path to study area file(s) for GCBM spatial input")
     parser.add_argument("--db_results", type=os.path.abspath, help="Path to compiled GCBM results database")
     parser.add_argument("--bounding_box", type=os.path.abspath, help="Bounding box defining animation area")
-    parser.add_argument("--config", type=os.path.abspath, help="Path to animation config file", default="indicators.json")
-    parser.add_argument("--disturbance_colors", type=os.path.abspath, help="Path to disturbance color config file")
-    parser.add_argument("--filter_disturbances", action="store_true", help="Limit disturbances to types in color config file", default=False)
+    parser.add_argument("--config", type=os.path.abspath, default="indicators.json",
+                        help="Path to animation config file")
+    parser.add_argument("--disturbance_colors", type=os.path.abspath,
+                        help="Path to disturbance color config file")
+    parser.add_argument("--filter_disturbances", action="store_true", default=False,
+                        help="Limit disturbances to types in color config file")
     parser.add_argument("--locale", help="Switch locale for generated animations")
     args = parser.parse_args()
 

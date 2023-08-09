@@ -45,8 +45,7 @@ class QuantileColorizer(Colorizer):
             return self._create_simple_value_legend(layers)
 
     def _create_simple_value_legend(self, layers):
-        quantile_data = self._get_quantile_dataset(layers)
-        quantiles = Quantiles(quantile_data, k=self._bins)
+        quantiles = Quantiles(self._get_quantile_dataset(layers), k=self._bins)
         bins = quantiles.bins
         colors = self._create_colors(self._palette, self._bins)
 
@@ -71,12 +70,9 @@ class QuantileColorizer(Colorizer):
         legend = {}
         k = self._bins // 2
 
-        negative_data = self._get_quantile_dataset(layers, Filter.Negative)
-        negative_quantiles = Quantiles(negative_data, k=k)
-        negative_bins = list(negative_quantiles.bins)
-        negative_colors = list(self._create_colors(self._negative_palette, k))
-        negative_quantiles = None
-        negative_data = None
+        negative_quantiles = Quantiles(self._get_quantile_dataset(layers, Filter.Negative), k=k)
+        negative_bins = negative_quantiles.bins
+        negative_colors = self._create_colors(self._negative_palette, k)
 
         for i, upper_bound in enumerate(negative_bins):
             if i == 0:
@@ -90,12 +86,9 @@ class QuantileColorizer(Colorizer):
                     "label": f"{self._format_value(lower_bound)} to {self._format_value(upper_bound)}",
                     "color": negative_colors[-i - 1]}
 
-        positive_data = self._get_quantile_dataset(layers, Filter.Positive)
-        positive_quantiles = Quantiles(positive_data, k=k)
+        positive_quantiles = Quantiles(self._get_quantile_dataset(layers, Filter.Positive), k=k)
         positive_bins = positive_quantiles.bins
         positive_colors = self._create_colors(self._palette, k)
-        positive_quantiles = None
-        positive_data = None
 
         for i, upper_bound in enumerate(positive_bins):
             lower_bound = 0 if i == 0 else positive_bins[i - 1]
@@ -107,7 +100,14 @@ class QuantileColorizer(Colorizer):
 
     def _get_quantile_dataset(self, layers, filter=None):
         # Cap the maximum amount of data to load to avoid running out of memory.
-        data_points_per_layer = int(psutil.virtual_memory().available * 0.75 / (64 / 8) / len(layers) / 4)
+        data_points_per_layer = int(
+            (
+                  psutil.virtual_memory().available * 0.75
+                / (64 / 8) # assume 64-bit layer data in bytes
+                / len(layers)
+                / 4 # assume ~4 copies of array data during processing
+            ) / 2 # cut the result in half to allow for mapclassify.Quantiles
+        )
 
         all_layer_data = np.empty(shape=(0, 0))
         for layer in layers:

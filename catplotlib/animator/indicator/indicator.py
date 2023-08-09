@@ -14,11 +14,12 @@ class Indicator:
 
     Arguments:
     'indicator' -- the short name of the indicator.
-    'layer_pattern' -- a file pattern (including directory path) in glob format to
-        find the spatial outputs for the indicator, i.e. "c:\\my_run\\NPP_*.tif";
-        can also be specified as a tuple of (file pattern, Units) to specify the
-        native units of the layers (i.e. Units.Tc) - otherwise the default of
-        Units.TcPerHa is used.
+    'layer_pattern' -- a file pattern (including directory path) or list of
+        patterns in glob format to find the spatial outputs for the indicator,
+        i.e. "c:\\my_run\\NPP_*.tif". Can also be specified as a tuple of
+        (file pattern or list of patterns, Units) to specify the native units
+        of the layers (i.e. Units.Tc) - otherwise the default of Units.TcPerHa
+        is used.
     'results_provider' -- a GcbmResultsProvider for retrieving the non-spatial
         GCBM results.
     'provider_filter' -- filter to pass to results_provider to retrieve a single

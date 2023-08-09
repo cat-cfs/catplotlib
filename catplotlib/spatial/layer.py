@@ -304,7 +304,6 @@ class Layer:
         Returns the path to the area raster.
         '''
         geotransform = self.info["geoTransform"]
-        resolution = geotransform[1]
         cache_key = str(geotransform)
         area_raster_path = self._cache.storage.get(cache_key)
         if area_raster_path:
@@ -351,33 +350,31 @@ class Layer:
         
         Returns a new reclassified Layer object.
         '''
+        if new_interpretation == self.interpretation:
+            logging.debug(f"Attribute table already matches, skipping reclassify for {self._path}")
+            return self
+
         gdal.SetCacheMax(gdal_memory_limit)
         logging.debug(f"Reclassifying {self._path}")
-        raster = gdal.Open(self._path)
-        band = raster.GetRasterBand(1)
-        raster_data = band.ReadAsArray()
-
-        uninterpreted_values = np.isin(raster_data, list(self._interpretation.keys()), invert=True)
-        raster_data[uninterpreted_values] = nodata_value
-        
-        # Guard against conflicts between original and reclassified pixel values
-        # before updating anything.
-        collision_offset = max(chain(self._interpretation.keys(), new_interpretation.keys()), default=0) + 1
-        raster_data[raster_data != nodata_value] += collision_offset
-
-        inverse_new_interpretation = {v: k for k, v in new_interpretation.items()}
-        for original_pixel_value, interpreted_value in self._interpretation.items():
-            new_pixel_value = inverse_new_interpretation[interpreted_value] \
-                if interpreted_value in inverse_new_interpretation \
-                else nodata_value
-
-            if new_pixel_value == nodata_value:
-                logging.info(f"  No new pixel value for {interpreted_value}: setting to nodata ({nodata_value})")
-
-            raster_data[raster_data == original_pixel_value + collision_offset] = new_pixel_value
 
         output_path = TempFileManager.mktmp(suffix=".tif")
-        self._save_as(raster_data, nodata_value, output_path)
+        inverse_new_interpretation = {v: k for k, v in new_interpretation.items()}
+        orig_ndv = self.nodata_value
+
+        px_calcs = (
+            f"((A == {original_px}) * {inverse_new_interpretation.get(original_interp, nodata_value)})"
+            for original_px, original_interp in self._interpretation.items()
+        )
+
+        calc = "+".join((
+            f"((A == {orig_ndv}) * {nodata_value})",
+            f"(isin(A, {list(new_interpretation.keys())}, invert=True) * {nodata_value})",
+            *px_calcs
+        ))
+
+        Calc(calc, output_path, nodata_value, quiet=True, creation_options=gdal_creation_options,
+             overwrite=True, hideNoData=False, A=self._path)
+
         reclassified_layer = Layer(output_path, self._year, new_interpretation, self._units, cache=self._cache)
 
         return reclassified_layer

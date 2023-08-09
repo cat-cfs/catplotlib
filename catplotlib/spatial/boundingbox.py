@@ -59,13 +59,14 @@ class BoundingBox(Layer):
         if not self._min_geographic_bounds:
             x_min, x_max, y_min, y_max = self.min_pixel_bounds
             origin_x, x_size, _, origin_y, _, y_size, *_ = gdal.Open(self._path).GetGeoTransform()
-        
-            x_min_proj = origin_x + x_min * x_size
-            x_max_proj = origin_x + x_max * x_size
-            y_min_proj = origin_y + y_min * y_size
-            y_max_proj = origin_y + y_max * y_size
-
-            self._min_geographic_bounds = [x_min_proj, y_min_proj, x_max_proj, y_max_proj]
+       
+            all_geog_x = (origin_x + x_min * x_size, origin_x + x_max * x_size)
+            all_geog_y = (origin_y + y_min * y_size, origin_y + y_max * y_size)
+            
+            self._min_geographic_bounds = [
+                min(all_geog_x), min(all_geog_y),
+                max(all_geog_x), max(all_geog_y)
+            ]
 
         return self._min_geographic_bounds
 
@@ -107,15 +108,14 @@ class BoundingBox(Layer):
         bbox_path = TempFileManager.mktmp(no_manual_cleanup=True, suffix=".tif")
         gdal.SetCacheMax(gdal_memory_limit)
         gdal.Warp(bbox_path, self._path,
-                  outputBounds=self.min_geographic_bounds,
-                  outputBoundsSRS=self._get_srs(),
                   dstSRS=self._projection or self._get_srs(),
                   creationOptions=gdal_creation_options)
 
         # Warp again to fix projection issues - sometimes will be flipped vertically
         # from the original.
         final_bbox_path = TempFileManager.mktmp(no_manual_cleanup=True, suffix=".tif")
-        gdal.Warp(final_bbox_path, bbox_path, creationOptions=gdal_creation_options)
+        gdal.Warp(final_bbox_path, bbox_path, creationOptions=gdal_creation_options,
+                  outputBounds=BoundingBox(bbox_path).min_geographic_bounds)
 
         self._path = final_bbox_path
         self._min_geographic_bounds = None
