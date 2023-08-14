@@ -54,7 +54,7 @@ class QuantileColorizer(Colorizer):
             if i == 0:
                 legend[upper_bound] = {
                     "label": f"<= {self._format_value(upper_bound)}",
-                    "color": next(colors)}
+                    "color": colors[i]}
             else:
                 lower_bound = bins[i - 1]
                 legend[(lower_bound, upper_bound)] = {
@@ -62,7 +62,7 @@ class QuantileColorizer(Colorizer):
                         f"{self._format_value(lower_bound)} " +
                         _("to") +
                         f" {self._format_value(upper_bound)}"),
-                    "color": next(colors)}
+                    "color": colors[i]}
        
         return legend
 
@@ -94,7 +94,7 @@ class QuantileColorizer(Colorizer):
             lower_bound = 0 if i == 0 else positive_bins[i - 1]
             legend[(lower_bound, upper_bound)] = {
                 "label": f"{self._format_value(lower_bound)} to {self._format_value(upper_bound)}",
-                "color": next(positive_colors)}
+                "color": positive_colors[i]}
 
         return legend
 

@@ -65,12 +65,13 @@ class Colorizer:
 
     def _create_interpreted_legend(self, layers, interpretation):
         colors = self._create_colors(self._palette, len(interpretation))
+        colors_iter = iter(colors)
 
         legend = {}
         for pixel_value, interpreted_value in interpretation.items():
             legend[pixel_value] = {
                 "label": interpreted_value,
-                "color": next(colors)}
+                "color": next(colors_iter)}
 
         return legend
 
@@ -79,7 +80,7 @@ class Colorizer:
 
     def _create_colors(self, palette, n):
         rgb_pct_colors = sns.color_palette(palette, n)
-        rgb_colors = ((int(r_pct * 255), int(g_pct * 255), int(b_pct * 255))
-                      for r_pct, g_pct, b_pct in rgb_pct_colors)
+        rgb_colors = [(int(r_pct * 255), int(g_pct * 255), int(b_pct * 255))
+                      for r_pct, g_pct, b_pct in rgb_pct_colors]
 
         return rgb_colors

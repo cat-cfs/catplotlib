@@ -116,7 +116,10 @@ class DisturbanceLayerConfigurer:
         layer_collection = LayerCollection(colorizer=self._colorizer,
                                            background_color=self._background_color)
 
-        for layer in glob(os.path.join(spatial_results, "current_disturbance*.ti*[!.]")):
+        for layer in filter(
+            lambda fn: os.path.splitext(fn)[1] in (".tif", ".tiff"),
+            glob(os.path.join(spatial_results, "current_disturbance*.ti*"))
+        ):
             year = int(os.path.splitext(os.path.basename(layer))[0].split("_")[-1])
             if not (
                 (year >= min_year if min_year else True)

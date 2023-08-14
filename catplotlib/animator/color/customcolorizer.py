@@ -33,14 +33,16 @@ class CustomColorizer(Colorizer):
                 interpreted_values = (interpreted_values,)
 
             colors = self._create_colors(palette, len(interpreted_values))
+            colors_iter = iter(colors)
             for value in interpreted_values:
-                color_map[value] = next(colors)
+                color_map[value] = next(colors_iter)
 
         uncustomized_values = set(interpretation.values()) - set(color_map.keys())
         if uncustomized_values:
             colors = self._create_colors(self._palette, len(uncustomized_values))
+            colors_iter = iter(colors)
             for value in uncustomized_values:
-                color_map[value] = next(colors)
+                color_map[value] = next(colors_iter)
 
         inverted_original_interpretation = {v: k for k, v in interpretation.items()}
 

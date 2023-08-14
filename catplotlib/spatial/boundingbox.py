@@ -115,7 +115,7 @@ class BoundingBox(Layer):
         # from the original.
         final_bbox_path = TempFileManager.mktmp(no_manual_cleanup=True, suffix=".tif")
         gdal.Warp(final_bbox_path, bbox_path, creationOptions=gdal_creation_options,
-                  outputBounds=BoundingBox(bbox_path).min_geographic_bounds)
+                  outputBounds=BoundingBox(bbox_path, cache=self._cache).min_geographic_bounds)
 
         self._path = final_bbox_path
         self._min_geographic_bounds = None
