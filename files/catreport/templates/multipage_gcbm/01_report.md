@@ -20,6 +20,8 @@ from catplotlib.reporting.util.templatehelper import *
 from catplotlib.reporting.plot.basic import *
 from catplotlib.spatial.display.raster import show_raster_location
 
+%matplotlib inline
+
 bounding_box_path = r"..\..\layers\tiled\bounding_box.tif"
 
 %providers
