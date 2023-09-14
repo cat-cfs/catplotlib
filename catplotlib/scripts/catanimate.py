@@ -25,10 +25,11 @@ from mojadata.util import gdal
 
 class Simulation:
 
-    def __init__(self, study_areas, spatial_output_path, db_output_path=None):
+    def __init__(self, study_areas, spatial_output_path, db_output_path=None, bounding_box=None):
         self.study_areas = [study_areas] if isinstance(study_areas, str) else study_areas
         self.db_output_path = db_output_path
         self.spatial_output_path = spatial_output_path
+        self.bounding_box = bounding_box
 
         for path in filter(lambda fn: fn, (
             *self.study_areas, self.spatial_output_path, self.db_output_path
@@ -103,22 +104,37 @@ def load_indicators(simulations, indicator_config_path=None, use_db_results=True
     return indicators
 
 def create_bounding_box(simulations, bounding_box_path=None):
-    if bounding_box_path:
+    if bounding_box_path and os.path.exists(bounding_box_path):
         logging.info(f"Using bounding box: {bounding_box_path}")
         return BoundingBox(bounding_box_path, find_best_projection(Layer(bounding_box_path, 0)))
-
+    
     # Try to find a suitable bounding box: the tiler bounding box is usually
     # the only tiff file in the study area directory without "moja" in its name;
     # if that isn't found, use the first tiff file in the study area dir.
+    logging.info("Searching for bounding box.")
+
     bounding_box_files = []
     for sim in simulations:
-        study_area_dir = os.path.dirname(sim.study_areas[0])
-        bounding_box_candidates = glob(os.path.join(study_area_dir, "*.tif['', 'f']"))
-        bounding_box_file = next(filter(lambda tiff: "moja" not in tiff, bounding_box_candidates), None)
-        if not bounding_box_file:
-            bounding_box_file = os.path.abspath(bounding_box_candidates[0])
+        if sim.bounding_box:
+            logging.info(f"Using configured bounding box: {os.path.abspath(sim.bounding_box)}.")
+            bounding_box_files.append(os.path.abspath(sim.bounding_box))
+            continue
 
-        bounding_box_files.append(bounding_box_file)
+        study_area_dir = os.path.dirname(sim.study_areas[0])
+        
+        if bounding_box_path:
+            bounding_box_file_by_pattern = os.path.join(study_area_dir, bounding_box_path)
+            logging.info(f"Using bounding box by configured pattern: {bounding_box_file_by_pattern}.")
+            if os.path.exists(bounding_box_file_by_pattern):
+                bounding_box_files.append(os.path.abspath(bounding_box_file_by_pattern))
+        else:
+            bounding_box_candidates = glob(os.path.join(study_area_dir, "*.tif['', 'f']"))
+            bounding_box_file = next(filter(lambda tiff: "moja" not in tiff, bounding_box_candidates), None)
+            if not bounding_box_file:
+                bounding_box_file = os.path.abspath(bounding_box_candidates[0])
+
+            logging.info(f"Found bounding box: {os.path.abspath(bounding_box_file)}.")
+            bounding_box_files.append(os.path.abspath(bounding_box_file))
 
     if len(bounding_box_files) == 1:
         bounding_box_path = bounding_box_files[0]
@@ -184,7 +200,7 @@ def load_disturbances(simulations, disturbance_colors_path=None, filter_disturba
 
 def load_spatial_results_config(spatial_results_config_path):
     return [
-        Simulation(item["study_area"], item["spatial_results"], item.get("db_results"))
+        Simulation(item["study_area"], item["spatial_results"], item.get("db_results"), item.get("bounding_box"))
         for item in json.load(open(spatial_results_config_path, "rb"))
     ]
 
@@ -197,7 +213,7 @@ def cli():
     parser.add_argument("--spatial_results", type=os.path.abspath, help="Path to GCBM spatial output")
     parser.add_argument("--study_area", nargs="*", help="Path to study area file(s) for GCBM spatial input")
     parser.add_argument("--db_results", type=os.path.abspath, help="Path to compiled GCBM results database")
-    parser.add_argument("--bounding_box", type=os.path.abspath, help="Bounding box defining animation area")
+    parser.add_argument("--bounding_box", help="Bounding box defining animation area")
     parser.add_argument("--config", type=os.path.abspath, default="indicators.json",
                         help="Path to animation config file")
     parser.add_argument("--disturbance_colors", type=os.path.abspath,
