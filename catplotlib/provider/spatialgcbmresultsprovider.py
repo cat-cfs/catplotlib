@@ -13,7 +13,7 @@ from catplotlib.util.config import pool_workers
 from catplotlib.util.config import gdal_creation_options
 from catplotlib.util.config import gdal_memory_limit
 from catplotlib.util.tempfile import TempFileManager
-from mojadata.util import gdal
+from catplotlib.util import gdal
 
 class SpatialGcbmResultsProvider(ResultsProvider):
     '''

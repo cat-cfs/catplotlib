@@ -1,5 +1,5 @@
 import numpy as np
-from mojadata.util import gdal
+from catplotlib.util import gdal
 from mojadata.util.gdal_calc import Calc
 from catplotlib.spatial.layer import Layer
 from catplotlib.util.config import gdal_creation_options

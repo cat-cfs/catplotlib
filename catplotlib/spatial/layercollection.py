@@ -3,7 +3,7 @@ import shutil
 from itertools import chain
 from collections import defaultdict
 from multiprocessing import Pool
-from mojadata.util import gdal
+from catplotlib.util import gdal
 from catplotlib.spatial.layer import Layer
 from catplotlib.provider.units import Units
 from catplotlib.spatial.layer import BlendMode
@@ -167,7 +167,9 @@ class LayerCollection:
             layer_years = {layer.year for layer in self._layers}
             render_years = set(range(start_year, end_year + 1)) if start_year and end_year else layer_years
             working_layers = [layer for layer in self._layers if layer.year in render_years]
-            if bounding_box:
+
+            pre_crop = bounding_box and bounding_box.px_area < working_layers[0].px_area
+            if bounding_box and pre_crop:
                 working_layers = pool.map(bounding_box.crop, working_layers)
 
             tasks = [pool.apply_async(layer.convert_units, (units,)) for layer in working_layers]
@@ -189,12 +191,11 @@ class LayerCollection:
             for layer in working_layers:
                 layers_by_year[layer.year].append(layer)
 
-            background_layer = bounding_box or working_layers[0]
-            background_frame = background_layer.flatten().render(
-                {1: {"color": self._background_color}}, bounding_box=bounding_box, transparent=False)
-
             # Merge groups of layers by year.
             working_layers = list(map(self._merge_layers, layers_by_year.values()))
+            if bounding_box and not pre_crop:
+                working_layers = pool.map(bounding_box.crop, working_layers)
+
             legend = self._colorizer.create_legend(working_layers)
 
             # Render the merged layers.
@@ -202,6 +203,10 @@ class LayerCollection:
             rendered_layers = [task.get() for task in tasks]
 
             # Add the background to the rendered layers.
+            background_layer = bounding_box or working_layers[0]
+            background_frame = background_layer.flatten().render(
+                {1: {"color": self._background_color}}, bounding_box=bounding_box, transparent=False)
+
             rendered_layers = [layer.composite(background_frame, True) for layer in rendered_layers]
 
             missing_years = render_years - layer_years

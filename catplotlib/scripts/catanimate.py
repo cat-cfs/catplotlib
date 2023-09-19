@@ -21,7 +21,7 @@ from catplotlib.util.config import gdal_creation_options
 from catplotlib.util.config import gdal_memory_limit
 from catplotlib.util.tempfile import TempFileManager
 from catplotlib.util.utmzones import find_best_projection
-from mojadata.util import gdal
+from catplotlib.util import gdal
 
 class Simulation:
 
@@ -34,7 +34,7 @@ class Simulation:
         for path in filter(lambda fn: fn, (
             *self.study_areas, self.spatial_output_path, self.db_output_path
         )):
-            if not os.path.exists(path):
+            if path and not os.path.exists(path):
                 raise IOError(f"{path} not found.")
 
 def find_units(units_str):

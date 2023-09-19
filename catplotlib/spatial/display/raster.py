@@ -6,7 +6,7 @@ import cartopy.crs as ccrs
 from pyproj.crs import CRS
 from pyproj.enums import WktVersion
 from mojadata.util import osr
-from mojadata.util import gdal
+from catplotlib.util import gdal
 from matplotlib.colors import ListedColormap
 from matplotlib.colors import BoundaryNorm
 from cartopy.io import DownloadWarning

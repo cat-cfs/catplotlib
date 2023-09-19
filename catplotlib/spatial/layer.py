@@ -5,7 +5,7 @@ import numpy as np
 from itertools import chain
 from enum import Enum
 from string import ascii_uppercase
-from mojadata.util import gdal
+from catplotlib.util import gdal
 from mojadata.util.gdal_calc import Calc
 from geopy.distance import distance
 from catplotlib.util.config import gdal_creation_options
@@ -77,6 +77,15 @@ class Layer:
                 self._path, format="json", deserialize=False, computeMinMax=False).replace("nan", "0"))
         
         return self._info
+    
+    @property
+    def px_area(self):
+        '''Gets this layer's area in pixels (simple x-pixels by y-pixels).'''
+        ds = gdal.Open(self._path)
+        band = ds.GetRasterBand(1)
+        px_area = band.XSize * band.YSize
+        
+        return px_area
 
     @property
     def min_max(self):
