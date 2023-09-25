@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from itertools import chain
@@ -76,6 +77,8 @@ class LayerCollection:
         'units' -- the units to convert to.
         'area_only' -- only perform per-hectare <-> per-pixel conversion
         '''
+        logging.info("Converting layer collection units")        
+
         return LayerCollection([layer.convert_units(units, area_only) for layer in self._layers],
                                self._background_color, self._colorizer)
 
@@ -163,6 +166,7 @@ class LayerCollection:
         Returns a list of rendered Frame objects and a legend (dict) describing
         the colors.
         '''
+        logging.info("Rendering layer collection...")
         with Pool(pool_workers) as pool:
             layer_years = {layer.year for layer in self._layers}
             render_years = set(range(start_year, end_year + 1)) if start_year and end_year else layer_years
@@ -170,8 +174,10 @@ class LayerCollection:
 
             pre_crop = bounding_box and bounding_box.px_area < working_layers[0].px_area
             if bounding_box and pre_crop:
+                logging.info("    pre-cropping layers to bounding box")
                 working_layers = pool.map(bounding_box.crop, working_layers)
 
+            logging.info("    converting units")
             tasks = [pool.apply_async(layer.convert_units, (units,)) for layer in working_layers]
             working_layers = [task.get() for task in tasks]
 
@@ -180,6 +186,7 @@ class LayerCollection:
             if interpreted:
                 # Interpreted layers where the pixel values have meaning, i.e. a disturbance type,
                 # get their pixel values normalized across the whole collection.
+                logging.info("    reclassifying interpreted layers")
                 unique_values = sorted(set(chain(*(layer.interpretation.values() for layer in working_layers))))
                 common_interpretation = {i: value for i, value in enumerate(unique_values, 1)}
                 tasks = [pool.apply_async(layer.reclassify, (common_interpretation,)) for layer in working_layers]
@@ -192,13 +199,16 @@ class LayerCollection:
                 layers_by_year[layer.year].append(layer)
 
             # Merge groups of layers by year.
+            logging.info("    merging layers")
             working_layers = list(map(self._merge_layers, layers_by_year.values()))
             if bounding_box and not pre_crop:
+                logging.info("    cropping layers to bounding box")
                 working_layers = pool.map(bounding_box.crop, working_layers)
 
             legend = self._colorizer.create_legend(working_layers)
 
             # Render the merged layers.
+            logging.info("    rendering layers")
             tasks = [pool.apply_async(layer.render, (legend,)) for layer in working_layers]
             rendered_layers = [task.get() for task in tasks]
 
@@ -207,6 +217,7 @@ class LayerCollection:
             background_frame = background_layer.flatten().render(
                 {1: {"color": self._background_color}}, bounding_box=bounding_box, transparent=False)
 
+            logging.info("    compositing output with background layer")
             rendered_layers = [layer.composite(background_frame, True) for layer in rendered_layers]
 
             missing_years = render_years - layer_years
@@ -214,6 +225,8 @@ class LayerCollection:
                 Frame(year, background_frame.path, background_frame.scale)
                 for year in missing_years])
         
+            logging.info("Finished rendering layer collection")
+
             return rendered_layers, legend
 
     def _merge_layers(self, layers):

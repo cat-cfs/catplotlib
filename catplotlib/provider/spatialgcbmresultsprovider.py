@@ -1,4 +1,3 @@
-from multiprocessing.pool import ThreadPool
 import os
 import pandas as pd
 from multiprocessing import Pool
@@ -12,6 +11,7 @@ from catplotlib.provider.resultsprovider import ResultsProvider
 from catplotlib.util.config import pool_workers
 from catplotlib.util.config import gdal_creation_options
 from catplotlib.util.config import gdal_memory_limit
+from catplotlib.util.config import catplotlib_memory_limit
 from catplotlib.util.tempfile import TempFileManager
 from catplotlib.util import gdal
 
@@ -43,7 +43,7 @@ class SpatialGcbmResultsProvider(ResultsProvider):
 
     def get_annual_result(self, indicator, start_year=None, end_year=None,
                           units=Units.Tc, bounding_box=None, **kwargs):
-        '''See GcbmResultsProvider.get_annual_result.'''
+        '''See ResultsProvider.get_annual_result.'''
         if not self._layers:
             self._find_layers()
 
@@ -72,18 +72,19 @@ class SpatialGcbmResultsProvider(ResultsProvider):
 
     def _find_layers(self):
         layers_by_year = defaultdict(list)
+        pattern = self._pattern
         units = Units.TcPerHa
         if isinstance(self._pattern, tuple):
             pattern, units = self._pattern
             
-        for pattern in ([pattern] if isinstance(pattern, str) else pattern):
-            for layer_path in glob(pattern):
+        for p in ([pattern] if isinstance(pattern, str) else pattern):
+            for layer_path in glob(p):
                 year = os.path.splitext(layer_path)[0][-4:]
                 layer = Layer(layer_path, year, units=units)
                 layers_by_year[layer.year].append(layer)
 
         if not layers_by_year:
-            raise IOError(f"No spatial output found for pattern: {self._pattern}")
+            raise IOError(f"No spatial output found for pattern: {p}")
 
         # Merge the layers together by year if this is a fragmented collection of layers.
         with ThreadPoolExecutor(pool_workers) as pool:
@@ -94,7 +95,7 @@ class SpatialGcbmResultsProvider(ResultsProvider):
             return layers[0]
 
         output_path = TempFileManager.mktmp(suffix=".tif")
-        gdal.SetCacheMax(gdal_memory_limit)
+        gdal.SetCacheMax(catplotlib_memory_limit)
         gdal.Warp(output_path, [layer.path for layer in layers], creationOptions=gdal_creation_options)
         merged_layer = Layer(output_path, layers[0].year, layers[0].interpretation, layers[0].units)
 

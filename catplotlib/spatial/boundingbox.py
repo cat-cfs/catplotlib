@@ -104,6 +104,15 @@ class BoundingBox(Layer):
 
         return cropped_layer
 
+    def init(self):
+        '''
+        Explicitly initializes the bounding box instead of waiting for it to happen
+        as needed - can be useful for avoiding redundant initialization steps in
+        multiprocessing.
+        '''
+        if not self._initialized:
+            self._init()
+
     def _init(self):
         bbox_path = TempFileManager.mktmp(no_manual_cleanup=True, suffix=".tif")
         gdal.SetCacheMax(gdal_memory_limit)

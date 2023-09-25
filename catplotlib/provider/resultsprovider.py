@@ -29,6 +29,10 @@ class ResultsProvider:
         '''The simulated area, in hectares.'''
         raise NotImplementedError()
 
+    def has_indicator(self, indicator):
+        '''Check if this provider has the specified indicator.'''
+        raise NotImplementedError()
+
     def get_annual_result(self, indicator, start_year=None, end_year=None, units=Units.Tc, **kwargs):
         '''
         Gets an ordered collection of annual results for a particular indicator,

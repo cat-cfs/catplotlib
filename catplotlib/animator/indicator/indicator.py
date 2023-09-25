@@ -1,4 +1,5 @@
 import os
+import logging
 from glob import glob
 from catplotlib.animator.color.colorizer import Colorizer
 from catplotlib.provider.units import Units
@@ -93,6 +94,8 @@ class Indicator:
         if not start_year or not end_year:
             start_year, end_year = self._results_provider.simulation_years
         
+        logging.info(f"{self.title}: rendering map frames")
+
         return layers.render(bounding_box, start_year, end_year, self._map_units)
 
     def render_graph_frames(self, start_year=None, end_year=None, **kwargs):
@@ -108,7 +111,8 @@ class Indicator:
             return None
 
         plot = BasicResultsPlot(self._indicator, self._results_provider, self._graph_units)
-        
+        logging.info(f"{self.title}: rendering graph frames")
+
         return plot.render(start_year=start_year, end_year=end_year, **self._provider_filter, **kwargs)
        
     def _find_layers(self):

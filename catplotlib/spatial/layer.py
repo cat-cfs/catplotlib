@@ -359,7 +359,9 @@ class Layer:
         
         Returns a new reclassified Layer object.
         '''
-        if new_interpretation == self.interpretation:
+        if ((self.interpretation and self.interpretation.items() <= new_interpretation.items())
+            and nodata_value == self.nodata_value
+        ):
             logging.debug(f"Attribute table already matches, skipping reclassify for {self._path}")
             return self
 

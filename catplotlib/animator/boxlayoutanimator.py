@@ -64,6 +64,7 @@ class BoxLayoutAnimator:
                 bounding_box, start_year, end_year)
 
             if not disturbance_frames:
+                logging.info(f"{indicator.title}: rendering disturbance frames")
                 disturbance_frames, disturbance_legend = self._disturbances.render(
                     bounding_box, start_year, end_year)
 
@@ -93,6 +94,7 @@ class BoxLayoutAnimator:
                     [(left_legend_frame, None), (graph_frame, indicator.indicator), (right_legend_frame, None)]
                 ], title=title, dimensions=(3840, 2160)))
 
+            logging.info(f"{indicator.title}: creating final output")
             self._create_animation(indicator.title, animation_frames, fps)
 
         if include_single_views:

@@ -2,6 +2,7 @@
 import warnings
 warnings.simplefilter("ignore")
 
+import logging
 import psutil
 import numpy as np
 import seaborn as sns
@@ -99,6 +100,8 @@ class QuantileColorizer(Colorizer):
         return legend
 
     def _get_quantile_dataset(self, layers, filter=None):
+        logging.info("QuantileColorizer: loading data")
+
         # Cap the maximum amount of data to load to avoid running out of memory.
         data_points_per_layer = int(
             (
@@ -110,7 +113,9 @@ class QuantileColorizer(Colorizer):
         )
 
         all_layer_data = np.empty(shape=(0, 0))
-        for layer in layers:
+        n_layers = len(layers)
+        for i, layer in enumerate(layers, 1):
+            logging.info(f"    {i} / {n_layers}")
             layer_data = self._load_layer_data(layer, filter)
             if layer_data.size > data_points_per_layer:
                 # Keep the min/max values when trimming the dataset so that the

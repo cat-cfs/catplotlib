@@ -27,6 +27,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="catplotlib\animator\boxlayoutanimator.py" />
+    <Compile Include="catplotlib\animator\indicator\spatialindicator.py" />
     <Compile Include="catplotlib\animator\layout\boxlayout.py" />
     <Compile Include="catplotlib\animator\quadrantlayoutanimator.py" />
     <Compile Include="catplotlib\reporting\plot\basic.py" />

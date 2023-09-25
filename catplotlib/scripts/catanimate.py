@@ -10,6 +10,7 @@ from catplotlib.animator.util.disturbancelayerconfigurer import DisturbanceLayer
 from catplotlib.provider.sqlitegcbmresultsprovider import SqliteGcbmResultsProvider
 from catplotlib.provider.spatialgcbmresultsprovider import SpatialGcbmResultsProvider
 from catplotlib.animator.indicator.indicator import Indicator
+from catplotlib.animator.indicator.spatialindicator import SpatialIndicator
 from catplotlib.spatial.layer import Layer
 from catplotlib.provider.units import Units
 from catplotlib.animator.boxlayoutanimator import BoxLayoutAnimator
@@ -56,9 +57,6 @@ def load_indicators(simulations, indicator_config_path=None, use_db_results=True
     if not indicator_config_path:
         sys.exit("Indicator configuration file not found.")
 
-    if len(simulations) > 1:
-        use_db_results = False
-
     indicators = []
     for indicator_config in json.load(open(indicator_config_path, "rb")):
         graph_units = find_units(indicator_config["graph_units"]) if "graph_units" in indicator_config else Units.Tc
@@ -75,9 +73,6 @@ def load_indicators(simulations, indicator_config_path=None, use_db_results=True
             else [os.path.join(sim.spatial_output_path, output_file_pattern) for sim in simulations]
         )
 
-        results_provider = SqliteGcbmResultsProvider(simulations[0].db_output_path) if use_db_results \
-            else SpatialGcbmResultsProvider((output_file_patterns, output_file_units))
-
         colorizer = None
         interpretation = indicator_config.get("interpretation")
         if interpretation:
@@ -92,14 +87,27 @@ def load_indicators(simulations, indicator_config_path=None, use_db_results=True
                 negative_palette=indicator_config.get("negative_palette")
             ) if use_quantiles else Colorizer(indicator_config.get("palette"))
 
-        indicators.append(Indicator(
-            indicator_config.get("database_indicator") or indicator_config.get("title"),
-            (output_file_patterns, output_file_units),
-            results_provider, {"indicator": indicator_config.get("database_indicator")},
-            indicator_config.get("title"),
-            graph_units, map_units,
-            colorizer=colorizer,
-            interpretation=interpretation))
+        has_db_results = False
+        if use_db_results:
+            results_provider = SqliteGcbmResultsProvider([s.db_output_path for s in simulations])
+            has_db_results = results_provider.has_indicator(indicator_config.get("database_indicator"))
+            if has_db_results:
+                indicators.append(Indicator(
+                    indicator_config.get("database_indicator") or indicator_config.get("title"),
+                    (output_file_patterns, output_file_units),
+                    results_provider, {"indicator": indicator_config.get("database_indicator")},
+                    indicator_config.get("title"),
+                    graph_units, map_units,
+                    colorizer=colorizer,
+                    interpretation=interpretation))
+        
+        if not use_db_results or not has_db_results:
+            indicators.append(SpatialIndicator(
+                indicator_config.get("database_indicator") or indicator_config.get("title"),
+                (output_file_patterns, output_file_units),
+                indicator_config.get("title"),
+                graph_units, map_units,
+                colorizer=colorizer))
     
     return indicators
 
@@ -138,7 +146,7 @@ def create_bounding_box(simulations, bounding_box_path=None):
 
     if len(bounding_box_files) == 1:
         bounding_box_path = bounding_box_files[0]
-        logging.info(f"Using bounding box: {bounding_box_path}")
+        logging.info(f"Using bounding box: {bounding_box_path}.")
         return BoundingBox(bounding_box_path, find_best_projection(Layer(bounding_box_path, 0)))
 
     # Bounding box is a combination of multiple simulations covering different areas.
@@ -234,12 +242,14 @@ def cli():
         else load_spatial_results_config(args.spatial_results_config)
     )
 
-    use_db_results = (
-        (args.db_results and not args.bounding_box)
-        or (len(simulations) == 1 and simulations[0].db_output_path)
+    use_db_results = not args.bounding_box and (
+        args.db_results
+        or all((s.db_output_path for s in simulations))
     )
 
     bounding_box = create_bounding_box(simulations, args.bounding_box)
+    bounding_box.init()
+    
     indicators = load_indicators(simulations, args.config, use_db_results)
     disturbances = load_disturbances(simulations, args.disturbance_colors, args.filter_disturbances)
     animator = BoxLayoutAnimator(disturbances, indicators, args.output_path)
