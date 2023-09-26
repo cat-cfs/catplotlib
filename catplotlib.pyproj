@@ -108,6 +108,7 @@
     <Compile Include="catplotlib\util\config.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="catplotlib\util\queryrunner.py" />
     <Compile Include="catplotlib\util\utmzones.py">
       <SubType>Code</SubType>
     </Compile>
