@@ -4,7 +4,7 @@ from glob import glob
 
 setup(
     name="catplotlib",
-    version="3.3.3",
+    version="3.4.0",
     description="catplotlib",
     long_description="catplotlib",
     url="",
@@ -21,6 +21,7 @@ setup(
     keywords="moja.global",
     packages=find_packages(exclude=["contrib", "docs", "tests"]),
     install_requires=[
+        "sqlalchemy", "psutil",
         "numpy", "seaborn", "imageio", "imageio-ffmpeg",
         "pillow", "geopy", "utm", "jupyter-book", "sphinxcontrib-bibtex",
         "aenum", "pyepsg", "pyppeteer", "plotly",

@@ -32,8 +32,8 @@ class QueryRunner:
     type_map = {
         np.float64: sql.Numeric,
         np.int64  : sql.Integer,
-        np.object_: sql.Text,
-        np.str_   : sql.Text
+        np.object_: sql.String,
+        np.str_   : sql.String
     }
 
     def __init__(self, config):
@@ -68,11 +68,11 @@ class QueryRunner:
         all_original_tables = set()
         target_dbs = target_db if isinstance(target_db, list) else [target_db]
         attach_target_db = output_db is not None
-        with self._connect(working_db) as working_conn:
+        with self.connect(working_db) as working_conn:
             if attach_target_db:
                 for i, target in enumerate(target_dbs):
-                    with self._connect(target) as target_conn:
-                        target_tables = self._get_table_names(target_conn)
+                    with self.connect(target) as target_conn:
+                        target_tables = self.get_table_names(target_conn)
                         all_original_tables.update(target_tables)
 
                     working_conn.execute(text(f"ATTACH '{target}' AS other_{i}"))
@@ -84,8 +84,8 @@ class QueryRunner:
                 self._run_queries(working_conn, sql_file)
 
             if new_table_append:
-                with self._connect(output_db) as output_conn:
-                    new_tables = self._get_table_names(working_conn) - all_original_tables
+                with self.connect(output_db) as output_conn:
+                    new_tables = self.get_table_names(working_conn) - all_original_tables
                     self.copy_tables(working_conn, output_conn, new_tables,
                                      new_table_append, new_table_append)
 
@@ -104,11 +104,11 @@ class QueryRunner:
         if os.path.exists(output_path):
             os.remove(output_path)
         
-        with self._connect(output_path) as output_conn:
+        with self.connect(output_path) as output_conn:
             for label, input_db_path in databases.items():
-                with self._connect(input_db_path) as input_conn:
+                with self.connect(input_db_path) as input_conn:
                     if not tables:
-                        tables = self._get_table_names(input_conn)
+                        tables = self.get_table_names(input_conn)
 
                     self.copy_tables(
                         input_conn, output_conn, tables, True,
@@ -153,6 +153,8 @@ class QueryRunner:
             if not append:
                 output_table.drop(to_conn, checkfirst=True)
 
+            # Note: for MS Access, requires sqlalchemy-access >= 2.0.2 for YESNO fields.
+            output_table.indexes = set()
             output_table.create(to_conn, checkfirst=True)
 
             # Add any new columns to the existing table, if applicable.
@@ -167,17 +169,14 @@ class QueryRunner:
                                lambda row: {k: v for k, v in row._mapping.items()}, origin_data)
 
     def import_tables(self, db_path, source_db, tables, append=False, include_source_column=None):
-        with self._connect(source_db) as working_conn, \
-        self._connect(db_path) as output_conn:
+        with self.connect(source_db) as working_conn, \
+        self.connect(db_path) as output_conn:
             self.copy_tables(working_conn, output_conn, tables, append, include_source_column)
 
-    def import_xls(self, db_path, xls_path, sheet=0, table_name=None, columns=None, append=False):
-        table_name = table_name or sheet
+    def import_xls(self, db_path, xls_path, table_name=None, append=False, **kwargs):
+        table_name = table_name or kwargs.get("sheet_name", "xls_import")
         print(f"Importing {xls_path} into {table_name}...")
-        df = pd.read_excel(xls_path, sheet_name=sheet)
-        if columns:
-            self._replace_df_cols(df, columns)
-
+        df = pd.read_excel(xls_path, **kwargs)
         self._import_df(db_path, df, table_name, append)
 
     def import_csv(self, db_path, csv_path, table_name=None, columns=None, append=False):
@@ -190,7 +189,7 @@ class QueryRunner:
         self._import_df(db_path, df, table_name, append)
 
     def import_sql(self, db_path, source_db, sql_path, append=False, include_source_column=None):
-        with self._connect(source_db) as source_conn:
+        with self.connect(source_db) as source_conn:
             sql_files = glob(rf"{sql_path}\*.sql") if os.path.isdir(sql_path) else [sql_path]
             for sql_file in sql_files:
                 for i, sql in enumerate(self._load_sql(sql_file)):
@@ -214,7 +213,8 @@ class QueryRunner:
                     self._import_df(db_path, df, table_name, append)
 
     @contextmanager
-    def _connect(self, db_path):
+    def connect(self, db_path):
+        db_path = str(db_path)
         connection_url = "sqlite://"
         schema = None
         if db_path.startswith("postgresql"):
@@ -263,6 +263,16 @@ class QueryRunner:
             finally:
                 engine.dispose()
 
+    def get_table_names(self, conn, pattern=None):
+        md = MetaData()
+        if pattern:
+            md.reflect(bind=conn, views=True, resolve_fks=False,
+                       only=lambda t, _: pattern.lower() in t.lower())
+        else:
+            md.reflect(bind=conn, views=True, resolve_fks=False)
+        
+        return set((table.name for table in md.tables.values()))
+
     def _create_mdb(self, path, overwrite=True):
         '''
         Creates an empty Access database.
@@ -280,6 +290,7 @@ class QueryRunner:
                         "Jet OLEDB:Engine Type=5",
                         f"Data Source={path}"))
         
+        import win32com
         catalog = win32com.client.Dispatch("ADOX.Catalog")
         catalog.Create(dsn)
         
@@ -328,7 +339,7 @@ class QueryRunner:
 
     def _import_df(self, db_path, df, table_name, append=False):
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        with self._connect(db_path) as conn:
+        with self.connect(db_path) as conn:
             md = MetaData()
             table = self._df_to_table(md, df, table_name)
             if not append:
@@ -394,9 +405,3 @@ class QueryRunner:
             conn.execute(query.bindparams(**{
                 k: v for k, v in self.config.items() if k in query_params
             }))
-
-    def _get_table_names(self, conn):
-        md = MetaData()
-        md.reflect(bind=conn, views=True)
-        
-        return set((table.name for table in md.tables.values()))
