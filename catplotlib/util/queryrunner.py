@@ -3,6 +3,7 @@ import os
 import logging
 import shutil
 import warnings
+import re
 import psutil
 import pandas as pd
 import numpy as np
@@ -30,14 +31,14 @@ warnings.filterwarnings("ignore", category=SAWarning)
 class QueryRunner:
 
     type_map = {
-        np.float64: sql.Numeric,
+        np.float64: sql.Double,
         np.int64  : sql.Integer,
         np.object_: sql.String,
         np.str_   : sql.String
     }
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, config=None):
+        self.config = config or {}
         self.classifiers = config.get("classifiers") or []
 
     def run(self, sql_path, target_db, output_db=None, new_table_append=False):
@@ -173,8 +174,11 @@ class QueryRunner:
         self.connect(db_path) as output_conn:
             self.copy_tables(working_conn, output_conn, tables, append, include_source_column)
 
-    def import_xls(self, db_path, xls_path, table_name=None, append=False, **kwargs):
+    def import_xls(self, db_path, xls_path, table_name=None, append=False, cell_range=None, **kwargs):
         table_name = table_name or kwargs.get("sheet_name", "xls_import")
+        if cell_range:
+            kwargs.update(self._range_to_kwargs(cell_range))
+
         print(f"Importing {xls_path} into {table_name}...")
         df = pd.read_excel(xls_path, **kwargs)
         self._import_df(db_path, df, table_name, append)
@@ -188,12 +192,12 @@ class QueryRunner:
             
         self._import_df(db_path, df, table_name, append)
 
-    def import_sql(self, db_path, source_db, sql_path, append=False, include_source_column=None):
+    def import_sql(self, db_path, source_db, sql_path, append=False, include_source_column=None, table=None):
         with self.connect(source_db) as source_conn:
             sql_files = glob(rf"{sql_path}\*.sql") if os.path.isdir(sql_path) else [sql_path]
             for sql_file in sql_files:
                 for i, sql in enumerate(self._load_sql(sql_file)):
-                    table_name = os.path.splitext(os.path.basename(sql_file))[0]
+                    table_name = table or os.path.splitext(os.path.basename(sql_file))[0]
                     if i > 0:
                         table_name = f"{table_name}_{i}"
 
@@ -229,7 +233,7 @@ class QueryRunner:
         
             connection_string = (
                 r"DRIVER={Microsoft Access Driver (*.mdb, *.accdb)};"
-                f"DBQ={db_path};"
+                f"DBQ={os.path.abspath(db_path)};"
                 r"ExtendedAnsiSQL=1;"
             )
 
@@ -290,7 +294,7 @@ class QueryRunner:
                         "Jet OLEDB:Engine Type=5",
                         f"Data Source={path}"))
         
-        import win32com
+        import win32com.client
         catalog = win32com.client.Dispatch("ADOX.Catalog")
         catalog.Create(dsn)
         
@@ -405,3 +409,19 @@ class QueryRunner:
             conn.execute(query.bindparams(**{
                 k: v for k, v in self.config.items() if k in query_params
             }))
+    
+    def _range_to_kwargs(self, cell_range):
+        cell_regex = "([a-zA-Z]*)([0-9]*)"
+        range_start, range_end = cell_range.split(":")
+        start_col, start_row = re.findall(cell_regex, range_start)[0]
+        start_row = int(start_row)
+        end_col, end_row = re.findall(cell_regex, range_end)[0]
+        end_row = int(end_row)
+
+        kwargs = {
+            "usecols": ":".join((start_col, end_col)),
+            "skiprows": start_row - 1,
+            "nrows": end_row - start_row + 1
+        }
+        
+        return kwargs
