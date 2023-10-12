@@ -6,6 +6,7 @@ def _(message): return message
 class Units(Enum):
                  # PerHa  UnitsPerTc  Label
     Blank        = False, 1,          ""
+    BlankPerHa   = True,  1,          ""
     Age          = True,  1,          ""
     Tc           = False, 1,          "tC"
     Ktc          = False, 1e-3,       "KtC"

@@ -21,6 +21,7 @@ from sqlalchemy import MetaData
 from sqlalchemy import Table
 from sqlalchemy import select
 from sqlalchemy import insert
+from sqlalchemy import inspect
 from sqlalchemy.types import NullType
 from sqlalchemy.exc import SAWarning
 from textwrap import indent
@@ -39,7 +40,7 @@ class QueryRunner:
 
     def __init__(self, config=None):
         self.config = config or {}
-        self.classifiers = config.get("classifiers") or []
+        self.classifiers = self.config.get("classifiers") or []
 
     def run(self, sql_path, target_db, output_db=None, new_table_append=False):
         '''
@@ -80,8 +81,9 @@ class QueryRunner:
                     for table in target_tables:
                         working_conn.execute(text(
                             f"CREATE TEMP VIEW IF NOT EXISTS {table} AS SELECT * FROM other_{i}.{table}"))
-                
-            for sql_file in glob(rf"{sql_path}\*.sql"):
+            
+            sql_files = glob(rf"{sql_path}\*.sql") if os.path.isdir(sql_path) else [sql_path]    
+            for sql_file in sql_files:
                 self._run_queries(working_conn, sql_file)
 
             if new_table_append:
@@ -203,6 +205,13 @@ class QueryRunner:
 
                     query = text(sql)
                     query_params = query.compile().bind_names.values()
+                    query = query.bindparams(*(
+                        bindparam(param_name, required=False,
+                                  expanding=True if isinstance(self.config[param_name], list)
+                                            else False)
+                        for param_name in query_params
+                    ))
+
                     results = source_conn.execute(query.bindparams(**{
                         k: v for k, v in self.config.items() if k in query_params
                     }))
@@ -267,20 +276,21 @@ class QueryRunner:
             finally:
                 engine.dispose()
 
-    def get_table_names(self, conn, pattern=None):
-        md = MetaData()
-        if pattern:
-            md.reflect(bind=conn, views=True, resolve_fks=False,
-                       only=lambda t, _: pattern.lower() in t.lower())
-        else:
-            md.reflect(bind=conn, views=True, resolve_fks=False)
+    def get_table_names(self, conn, pattern=None, views=True):
+        table_names = inspect(conn).get_table_names()
+        if views:
+            table_names += inspect(conn).get_view_names()
         
-        return set((table.name for table in md.tables.values()))
+        if pattern:
+            table_names = (t for t in table_names if pattern.lower() in t.lower())
+        
+        return set(table_names)
 
     def _create_mdb(self, path, overwrite=True):
         '''
         Creates an empty Access database.
         '''
+        path = os.path.abspath(str(path))
         if os.path.exists(path):
             if overwrite:
                 os.unlink(path)
@@ -351,7 +361,7 @@ class QueryRunner:
 
             print(f"Importing data into {table_name}")
             table.create(conn, checkfirst=True)
-            self._batch_insert(conn, table, df.values,
+            self._batch_insert(conn, table, df.replace({np.nan: None}).values,
                                lambda row: dict(zip(df.columns, row)))
 
     def _load_sql(self, path, dialect=None):

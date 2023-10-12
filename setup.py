@@ -4,7 +4,7 @@ from glob import glob
 
 setup(
     name="catplotlib",
-    version="3.4.1",
+    version="3.4.2",
     description="catplotlib",
     long_description="catplotlib",
     url="",
