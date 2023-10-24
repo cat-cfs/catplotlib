@@ -1,6 +1,7 @@
 import json
 import logging
 import subprocess
+from tkinter import Y
 import numpy as np
 from itertools import chain
 from enum import Enum
@@ -78,6 +79,14 @@ class Layer:
         
         return self._info
     
+    @property
+    def is_lat_lon(self):
+        ds = gdal.Open(self.path)
+        srs = ds.GetSpatialRef()
+        is_lat_lon = srs.EPSGTreatsAsLatLong() == 1
+        
+        return is_lat_lon
+
     @property
     def px_area(self):
         '''Gets this layer's area in pixels (simple x-pixels by y-pixels).'''
@@ -181,7 +190,7 @@ class Layer:
                 f"(A.astype(numpy.float64) * {unit_conversion})",
                 f"* (A != {self.nodata_value})",
                 f"+ ((A == {self.nodata_value}) * {self.nodata_value})"))
-        elif "metre" in self.info["coordinateSystem"]["wkt"]:
+        elif not self.is_lat_lon:
             per_ha_conversion_op = "*" if current_per_ha else "/"
             _, pixel_size, *_ = self.info["geoTransform"]
             pixel_size_m2 = float(pixel_size) ** 2
@@ -230,34 +239,38 @@ class Layer:
 
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
-        raster_data = band.ReadAsArray().astype("float")
         nodata_value = self.nodata_value
+        
+        total_value = 0
+        total_area = 0
+        area_band = None
+        for chunk in self._chunk():
+            raster_data = band.ReadAsArray(*chunk).astype("float")
 
-        # First need to convert pixel values to absolute (as opposed to per hectare), in the correct
-        # units (tc/ktc/mtc), and determine the total area of non-nodata pixels.
-        if "metre" in self.info["coordinateSystem"]["wkt"]:
-            _, pixel_size, *_ = self.info["geoTransform"]
-            pixel_size_m2 = float(pixel_size) ** 2
-            per_ha_modifier = pixel_size_m2 / one_hectare if current_per_ha else 1
-            raster_data[raster_data != nodata_value] *= unit_conversion * per_ha_modifier
-            total_area = len(raster_data[raster_data != nodata_value]) * pixel_size_m2 / one_hectare
-        else:
-            raster_data[raster_data != nodata_value] *= unit_conversion
+            # First need to convert pixel values to absolute (as opposed to per hectare), in the correct
+            # units (tc/ktc/mtc), and determine the total area of non-nodata pixels.
+            if not self.is_lat_lon:
+                _, pixel_size, *_ = self.info["geoTransform"]
+                pixel_size_m2 = float(pixel_size) ** 2
+                per_ha_modifier = pixel_size_m2 / one_hectare if current_per_ha else 1
+                raster_data[raster_data != nodata_value] *= unit_conversion * per_ha_modifier
+                total_area += len(raster_data[raster_data != nodata_value]) * pixel_size_m2 / one_hectare
+            else:
+                if not area_band:
+                    area_raster_path = self.get_area_raster()
+                    area_raster = gdal.Open(area_raster_path)
+                    area_band = area_raster.GetRasterBand(1)
 
-            area_raster_path = self.get_area_raster()
-            area_raster = gdal.Open(area_raster_path)
-            area_band = area_raster.GetRasterBand(1)
-            area_data = area_band.ReadAsArray()
-            total_area = area_data[raster_data != nodata_value].sum()
+                raster_data[raster_data != nodata_value] *= unit_conversion
+                area_data = area_band.ReadAsArray(*chunk)
+                total_area += area_data[raster_data != nodata_value].sum()
 
-            if current_per_ha:
-                raster_data[raster_data != nodata_value] *= area_data[raster_data != nodata_value]
+                if current_per_ha:
+                    raster_data[raster_data != nodata_value] *= area_data[raster_data != nodata_value]
 
-        total_value = (
-            raster_data[(raster_data != nodata_value) & (~np.isnan(raster_data))].sum()
-            / (total_area if new_per_ha else 1))
-
-        return total_value
+            total_value += raster_data[(raster_data != nodata_value) & (~np.isnan(raster_data))].sum()
+            
+        return total_value / (total_area if new_per_ha else 1)
 
     def area_grid(self, chunk_size=5000):
         '''
@@ -282,28 +295,14 @@ class Layer:
         x_res = resolution if xmin < xmax else -resolution
         y_res = resolution if ymin < ymax else -resolution
 
-        width, height = self.info["size"]
-
-        y_chunk_starts = list(range(0, height, chunk_size))
-        y_chunk_ends = y_chunk_starts[1:] + [height]
-        y_chunks = list(zip(y_chunk_starts, y_chunk_ends))
-        
-        x_chunk_starts = list(range(0, width, chunk_size))
-        x_chunk_ends = x_chunk_starts[1:] + [width]
-        x_chunks = list(zip(x_chunk_starts, x_chunk_ends))
-
-        for i, (y_px_start, y_px_end) in enumerate(y_chunks):
+        for x_px_start, y_px_start, x_size, y_size in self._chunk(chunk_size):
             chunk_y_min = ymin + y_px_start * y_res
-            chunk_y_max = ymin + y_px_end * y_res
-            for j, (x_px_start, x_px_end) in enumerate(x_chunks):
-                y_size = y_px_end - y_px_start + (1 if i < len(y_chunks) - 1 else 0)
-                x_size = x_px_end - x_px_start + (1 if j < len(x_chunks) - 1 else 0)
-                
-                lats = np.arange(chunk_y_min, chunk_y_max, y_res)[:y_size]
-                area = np.abs(np.ones(x_size)[:, None] * resolution**2 * earth_diameter_m_per_deg**2
-                              * np.cos(lats * pi / 180.0) / m_per_hectare)
+            chunk_y_max = chunk_y_min + y_size * y_res
+            lats = np.arange(chunk_y_min, chunk_y_max, y_res)[:y_size]
+            area = np.abs(np.ones(x_size)[:, None] * resolution**2 * earth_diameter_m_per_deg**2
+                            * np.cos(lats * pi / 180.0) / m_per_hectare)
         
-                yield area.T, (x_px_start, y_px_start)
+            yield area.T, (x_px_start, y_px_start)
 
     def get_area_raster(self):
         '''
@@ -393,6 +392,8 @@ class Layer:
     def flatten(self, flattened_value=1, preserve_units=False):
         '''
         Flattens a copy of this layer: all non-nodata pixels become the target value.
+        If this layer has an interpretation, only the pixel values included in the
+        attribute table are flattened, and the others become nodata.
 
         Arguments:
         'flattened_value' -- the value to set all data pixels to.
@@ -406,6 +407,9 @@ class Layer:
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
         raster_data = band.ReadAsArray()
+        if self.has_interpretation:
+            raster_data[np.isin(raster_data, list(self._interpretation.keys()), invert=True)] = self.nodata_value
+        
         raster_data[raster_data != self.nodata_value] = flattened_value
         output_path = TempFileManager.mktmp(suffix=".tif")
         self._save_as(raster_data, self.nodata_value, output_path)
@@ -530,6 +534,25 @@ class Layer:
             "-nearest_color_entry"])
 
         return Frame(self._year, rendered_layer_path, self.scale)
+
+    def _chunk(self, chunk_size=5000):
+        '''Chunks this layer up for reading or writing.'''
+        width, height = self.info["size"]
+
+        y_chunk_starts = list(range(0, height, chunk_size))
+        y_chunk_ends = [y - 1 for y in (y_chunk_starts[1:] + [height])]
+        y_chunks = list(zip(y_chunk_starts, y_chunk_ends))
+        
+        x_chunk_starts = list(range(0, width, chunk_size))
+        x_chunk_ends = [x - 1 for x in (x_chunk_starts[1:] + [width])]
+        x_chunks = list(zip(x_chunk_starts, x_chunk_ends))
+
+        for i, (y_px_start, y_px_end) in enumerate(y_chunks):
+            for j, (x_px_start, x_px_end) in enumerate(x_chunks):
+                y_size = y_px_end - y_px_start + 1
+                x_size = x_px_end - x_px_start + 1
+
+                yield (x_px_start, y_px_start, x_size, y_size)
 
     def _save_as(self, data, nodata_value, output_path):
         gdal.SetCacheMax(gdal_memory_limit)
