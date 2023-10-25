@@ -52,7 +52,7 @@ class SqliteGcbmResultsProvider(ResultsProvider):
         '''See ResultsProvider.simulation_area.'''
         area = 0
         for path in self._paths:
-            conn = sqlite3.connect(self._path)
+            conn = sqlite3.connect(path)
             area += conn.execute(
                 """
                 SELECT SUM(area) FROM v_age_indicators

@@ -20,7 +20,7 @@ class StylingResultsProvider(ResultsProvider):
         self._style_manager = style_manager or StyleManager()
 
         if not provider:
-            provider = SqliteGcbmResultsProvider(path=path, *args, **kwargs)
+            provider = SqliteGcbmResultsProvider(path, *args, **kwargs)
 
         self._provider = provider
 
