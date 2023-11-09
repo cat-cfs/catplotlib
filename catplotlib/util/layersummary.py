@@ -16,6 +16,9 @@ from catplotlib.util.tempfile import TempFileManager
 
 def load_gcbm_attributes_to_dataframe(layer_path):
     layer_metadata_path = layer_path.with_suffix(".json")
+    if not layer_metadata_path.exists():
+        return DataFrame({"value": []}).set_index("value")
+    
     layer_attribute_table = json.load(open(layer_metadata_path, "rb"))["attributes"]
     attributes = set(chain(*(item.keys() for item in layer_attribute_table.values())))
     
@@ -54,13 +57,14 @@ def get_area_by_gcbm_attributes(
     pattern, bounding_box_path=None, bounding_box_filter=None,
     output_path="area_by_gcbm_attributes.csv"
 ):
-    TempFileManager.delete_on_exit()
     if output_path:
         output_path = Path(output_path)
         output_path.unlink(True)
     
     pattern = Path(pattern)
     layer_paths = list(pattern.parent.glob(pattern.name))
+    if not layer_paths:
+        return DataFrame()
     
     if bounding_box_path:
         layer_resolution = Layer(str(layer_paths[0]), 0).info["geoTransform"][1]
@@ -77,6 +81,9 @@ def get_area_by_gcbm_attributes(
             else Layer(str(layer_path), 0)
         )
         
+        if not Path(layer.path).exists():
+            continue
+
         layer_data = (
             layer.summarize()
                  .join(layer_attribute_table)
