@@ -1,6 +1,7 @@
 import os
 import imageio
 import logging
+import shutil
 from catplotlib.util import localization
 from catplotlib.animator.layout.quadrantlayout import QuadrantLayout
 from catplotlib.animator.legend import Legend
@@ -25,7 +26,8 @@ class QuadrantLayoutAnimator:
         self._indicators = indicators
         self._output_path = output_path
 
-    def render(self, bounding_box=None, start_year=None, end_year=None, fps=1, include_single_views=False):
+    def render(self, bounding_box=None, start_year=None, end_year=None, fps=1,
+               include_single_views=False, save_frames=False):
         '''
         Renders a set of animations, one for each Indicator in this animator.
 
@@ -41,6 +43,7 @@ class QuadrantLayoutAnimator:
         'include_single_views' -- include animations for each result view (graph,
             map, disturbances) separately in addition to the standard 4-quadrant
             layout.
+        'save_frames' -- also save the individual frames that make up the animation.
         '''
         os.makedirs(self._output_path, exist_ok=True)
 
@@ -49,13 +52,15 @@ class QuadrantLayoutAnimator:
         for indicator in self._indicators:
             logging.info(f"Rendering animation: {indicator.title}")
 
+            if not start_year or not end_year:
+                indicator_start_year, indicator_end_year = indicator.simulation_years
+                start_year = start_year or indicator_start_year
+                end_year = end_year or indicator_end_year
+
             graph_frames = indicator.render_graph_frames(
                 bounding_box=bounding_box, start_year=start_year, end_year=end_year)
 
             has_graph_frames = graph_frames is not None and len(graph_frames) > 0
-
-            if not start_year or not end_year:
-                start_year, end_year = indicator.simulation_years
 
             units = _(indicator.map_units.value[2])
             units_label = f" ({units})" if units else ""
@@ -94,6 +99,10 @@ class QuadrantLayoutAnimator:
                     title=title, dimensions=(3840, 2160)))
 
             self._create_animation(indicator.title, animation_frames, fps)
+
+            if save_frames:
+                for frame in animation_frames:
+                    shutil.copyfile(frame.path, os.path.join(self._output_path, os.path.basename(frame.path)))
 
         if include_single_views:
             self._render_single_view(_("Disturbances"), disturbance_frames, start_year, end_year,

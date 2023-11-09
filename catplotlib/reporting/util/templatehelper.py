@@ -28,16 +28,15 @@ def create_providers(paths, rotate_linestyles=True, rotate_colors=True, rotate_s
 
 def simulation_metadata(providers):
     align = "style='text-align:left;'"
-    db_table = f"<table style='width:100%'><tr><th {align}>Project</th><th {align}>Path</th></tr>"
+    db_table = f"<table style='width:100%'><tr><th {align}>Paths</th><th {align}></th></tr>"
     for i, provider in enumerate(providers):
-        if i == 0:
-            start_year, end_year = provider.simulation_years
-            display(Markdown(
-                f"""<table style='width:100%'
-                    ><tr><th {align}>Start year</th><th {align}>End year</th><th {align}>Area</th
-                    ><tr><td {align}>{start_year}</td><td {align}>{end_year}</td
-                    ><td {align}>{round(provider.simulation_area)} ha</td></tr
-                    ></table>"""))
+        start_year, end_year = provider.simulation_years
+        display(Markdown(
+            f"""<table style='width:100%'
+                ><tr><th {align}>Project</th><th {align}>Start year</th><th {align}>End year</th><th {align}>Area</th
+                ><tr><td {align}>{provider.name}</td><td {align}>{start_year}</td><td {align}>{end_year}</td
+                ><td {align}>{round(provider.simulation_area)} ha</td></tr
+                ></table>"""))
 
         db_table += f"<tr><td {align}'>{provider.name}</td>" \
             + f"<td style='word-break:break-all;text-align:left;'>{provider.path}</td></tr>"

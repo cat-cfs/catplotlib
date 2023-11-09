@@ -229,6 +229,9 @@ def cli():
     parser.add_argument("--filter_disturbances", action="store_true", default=False,
                         help="Limit disturbances to types in color config file")
     parser.add_argument("--locale", help="Switch locale for generated animations")
+    parser.add_argument("--start_year", type=int, help="Start year of the animation (detected if not provided)")
+    parser.add_argument("--end_year", type=int, help="End year of the animation (detected if not provided)")
+    parser.add_argument("--save_frames", action="store_true", default=False, help="Save animation frames")
     args = parser.parse_args()
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
@@ -253,7 +256,8 @@ def cli():
     indicators = load_indicators(simulations, args.config, use_db_results)
     disturbances = load_disturbances(simulations, args.disturbance_colors, args.filter_disturbances)
     animator = BoxLayoutAnimator(disturbances, indicators, args.output_path)
-    animator.render(bounding_box)
+    animator.render(bounding_box, start_year=args.start_year, end_year=args.end_year,
+                    save_frames=args.save_frames)
 
 if __name__ == "__main__":
     cli()

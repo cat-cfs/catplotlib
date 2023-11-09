@@ -3,6 +3,7 @@ import logging
 import subprocess
 from tkinter import Y
 import numpy as np
+from pandas import DataFrame
 from itertools import chain
 from enum import Enum
 from string import ascii_uppercase
@@ -272,6 +273,43 @@ class Layer:
             
         return total_value / (total_area if new_per_ha else 1)
 
+    def summarize(self):
+        '''
+        Returns a summary of this layer's area in hectares by pixel value.
+        '''
+        gdal.SetCacheMax(gdal_memory_limit)
+
+        raster = gdal.Open(self._path)
+        band = raster.GetRasterBand(1)
+        nodata_value = self.nodata_value
+        one_hectare = 100 ** 2
+        
+        pixel_areas = DataFrame({"value": [], "area": []}).set_index("value")
+        area_band = None
+        for chunk in self._chunk():
+            raster_data = band.ReadAsArray(*chunk)
+            if not self.is_lat_lon:
+                _, pixel_size, *_ = self.info["geoTransform"]
+                pixel_size_m2 = float(pixel_size) ** 2
+                values, counts = np.unique(raster_data[raster_data != nodata_value], return_counts=True)
+                pixel_areas = pixel_areas.add(DataFrame({
+                    "value": values, "area": counts * pixel_size_m2 / one_hectare
+                }).set_index("value"), fill_value=0)
+            else:
+                if not area_band:
+                    area_raster_path = self.get_area_raster()
+                    area_raster = gdal.Open(area_raster_path)
+                    area_band = area_raster.GetRasterBand(1)
+                
+                unique_values = np.unique(raster_data[raster_data != nodata_value])
+                area_data = area_band.ReadAsArray(*chunk)
+                pixel_areas = pixel_areas.add(DataFrame({
+                    "value": unique_values,
+                    "area": [area_data[raster_data == px].sum() for px in unique_values]
+                }).set_index("value"), fill_value=0)
+    
+        return pixel_areas
+    
     def area_grid(self, chunk_size=5000):
         '''
         Returns a grid for this layer where each pixel's value is its area in
