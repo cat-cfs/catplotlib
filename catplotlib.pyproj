@@ -42,6 +42,7 @@
     <Compile Include="catplotlib\util\cache.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="catplotlib\util\layersummary.py" />
     <Compile Include="catplotlib\util\localization.py">
       <SubType>Code</SubType>
     </Compile>

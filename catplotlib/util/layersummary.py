@@ -12,8 +12,6 @@ from mojadata.layer.attribute import Attribute
 from mojadata.layer.filter.valuefilter import ValueFilter
 from catplotlib.spatial.layer import Layer
 from catplotlib.spatial.boundingbox import BoundingBox
-from catplotlib.provider.spatialgcbmresultsprovider import SpatialGcbmResultsProvider
-from catplotlib.provider.units import Units
 from catplotlib.util.tempfile import TempFileManager
 
 def load_gcbm_attributes_to_dataframe(layer_path):
@@ -59,8 +57,7 @@ def get_area_by_gcbm_attributes(
     TempFileManager.delete_on_exit()
     if output_path:
         output_path = Path(output_path)
-        if output_path.exists():
-            output_path.unlink()
+        output_path.unlink(True)
     
     pattern = Path(pattern)
     layer_paths = list(pattern.parent.glob(pattern.name))
