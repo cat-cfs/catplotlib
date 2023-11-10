@@ -1,6 +1,7 @@
 import json
 import mojadata.boundingbox as moja
 import pandas as pd
+from multiprocessing import Pool
 from pandas import DataFrame
 from pathlib import Path
 from itertools import chain
@@ -13,6 +14,7 @@ from mojadata.layer.filter.valuefilter import ValueFilter
 from catplotlib.spatial.layer import Layer
 from catplotlib.spatial.boundingbox import BoundingBox
 from catplotlib.util.tempfile import TempFileManager
+from catplotlib.util.cache import get_cache
 
 def load_gcbm_attributes_to_dataframe(layer_path):
     layer_metadata_path = layer_path.with_suffix(".json")
@@ -32,7 +34,7 @@ def load_gcbm_attributes_to_dataframe(layer_path):
     
     return df
     
-def create_bounding_box(bounding_box_path, bounding_box_filter=None, pixel_size=0.001):
+def create_bounding_box(bounding_box_path, bounding_box_filter=None, pixel_size=0.001, cache=None):
     bounding_box_path = Path(bounding_box_path).absolute()
     layer_args = ["bbox", str(bounding_box_path)]
     if bounding_box_path.suffix in (".tif", ".tiff"):
@@ -47,16 +49,42 @@ def create_bounding_box(bounding_box_path, bounding_box_filter=None, pixel_size=
         raise RuntimeError("Unsupported bounding box type")
 
     with cleanup():
-        moja_bbox.init()
+        try:
+            moja_bbox.init()
+        except:
+            # Empty bounding box.
+            return None
         
-    catplotlib_bbox = BoundingBox("bounding_box.tiff")
+    catplotlib_bbox = BoundingBox("bounding_box.tiff", cache=cache)
     
     return catplotlib_bbox
+
+def process_layer(layer_path, bounding_box=None, cache=None):
+    layer_attribute_table = load_gcbm_attributes_to_dataframe(layer_path)
+        
+    layer = (
+        bounding_box.crop(Layer(str(layer_path), 0, cache=cache)) if bounding_box
+        else Layer(str(layer_path), 0, cache=cache)
+    )
+        
+    if not Path(layer.path).exists():
+        return DataFrame()
+
+    layer_data = (
+        layer.summarize()
+            .join(layer_attribute_table)
+            .reset_index()
+            .drop("value", axis=1)
+    )
+
+    return layer_data        
 
 def get_area_by_gcbm_attributes(
     pattern, bounding_box_path=None, bounding_box_filter=None,
     output_path="area_by_gcbm_attributes.csv"
 ):
+    cache = get_cache()    
+
     if output_path:
         output_path = Path(output_path)
         output_path.unlink(True)
@@ -66,37 +94,36 @@ def get_area_by_gcbm_attributes(
     if not layer_paths:
         return DataFrame()
     
+    bounding_box = None
     if bounding_box_path:
-        layer_resolution = Layer(str(layer_paths[0]), 0).info["geoTransform"][1]
+        layer_resolution = Layer(str(layer_paths[0]), 0, cache=cache).info["geoTransform"][1]
         bounding_box = create_bounding_box(
             bounding_box_path, bounding_box_filter, layer_resolution
         )
+        
+        if bounding_box is None:
+            # Empty bounding box, no data to retrieve.
+            return DataFrame()
     
     all_data = DataFrame()
-    for layer_path in layer_paths:
-        layer_attribute_table = load_gcbm_attributes_to_dataframe(layer_path)
+    with Pool() as pool:
+        tasks = []
+        for layer_path in layer_paths:
+            tasks.append(pool.apply_async(
+                process_layer,
+                (layer_path, bounding_box, cache)
+            ))
         
-        layer = (
-            bounding_box.crop(Layer(str(layer_path), 0)) if bounding_box_path
-            else Layer(str(layer_path), 0)
-        )
+        pool.close()
+        pool.join()
         
-        if not Path(layer.path).exists():
-            continue
-
-        layer_data = (
-            layer.summarize()
-                 .join(layer_attribute_table)
-                 .reset_index()
-                 .drop("value", axis=1)
-        )
-
-        all_data = pd.concat((all_data, layer_data))
-        all_data = (
-            all_data.groupby([c for c in all_data.columns if c != "area"])
-                .sum()
-                .reset_index()
-        )
+        for result in tasks:
+            all_data = pd.concat((all_data, result.get()))
+            all_data = (
+                all_data.groupby([c for c in all_data.columns if c != "area"])
+                    .sum()
+                    .reset_index()
+            )
     
     if output_path:
         all_data.to_csv(output_path, index=False)

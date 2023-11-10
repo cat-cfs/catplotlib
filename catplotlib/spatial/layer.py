@@ -277,8 +277,6 @@ class Layer:
         '''
         Returns a summary of this layer's area in hectares by pixel value.
         '''
-        gdal.SetCacheMax(gdal_memory_limit)
-
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
         nodata_value = self.nodata_value
