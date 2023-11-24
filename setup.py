@@ -4,7 +4,7 @@ from glob import glob
 
 setup(
     name="catplotlib",
-    version="3.5.1",
+    version="3.6.0",
     description="catplotlib",
     long_description="catplotlib",
     url="",
@@ -51,7 +51,8 @@ setup(
     entry_points={
         "console_scripts": [
             "catanimate = catplotlib.scripts.catanimate:cli",
-            "catreport = catplotlib.scripts.catreport:cli"
+            "catreport = catplotlib.scripts.catreport:cli",
+            "catoverlay = catplotlib.scripts.catoverlay:cli",
         ]
     },
     python_requires=">=3.7"

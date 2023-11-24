@@ -39,6 +39,7 @@
     <Compile Include="catplotlib\reporting\style\stylemanager.py" />
     <Compile Include="catplotlib\reporting\style\symbols.py" />
     <Compile Include="catplotlib\reporting\style\__init__.py" />
+    <Compile Include="catplotlib\scripts\catoverlay.py" />
     <Compile Include="catplotlib\util\cache.py">
       <SubType>Code</SubType>
     </Compile>
@@ -109,6 +110,7 @@
     <Compile Include="catplotlib\util\config.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="catplotlib\util\overlay.py" />
     <Compile Include="catplotlib\util\queryrunner.py" />
     <Compile Include="catplotlib\util\utmzones.py">
       <SubType>Code</SubType>

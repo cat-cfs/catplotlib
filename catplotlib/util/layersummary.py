@@ -1,6 +1,7 @@
 import json
-import mojadata.boundingbox as moja
+import logging
 import pandas as pd
+import mojadata.boundingbox as moja
 from multiprocessing import Pool
 from pandas import DataFrame
 from pathlib import Path
@@ -13,10 +14,19 @@ from mojadata.layer.attribute import Attribute
 from mojadata.layer.filter.valuefilter import ValueFilter
 from catplotlib.spatial.layer import Layer
 from catplotlib.spatial.boundingbox import BoundingBox
-from catplotlib.util.tempfile import TempFileManager
 from catplotlib.util.cache import get_cache
 
 def load_gcbm_attributes_to_dataframe(layer_path):
+    '''
+    Loads a GCBM-format tiled layer attribute table into a DataFrame in a format
+    suitable for joining to raster data by pixel value.
+
+    Arguments:
+    'layer_path' -- the path to a tiled GCBM layer (.tiff)
+
+    Returns the layer's attribute table as a DataFrame indexed by pixel value, or
+    an empty DataFrame if the layer has no attribute table.
+    '''
     layer_metadata_path = layer_path.with_suffix(".json")
     if not layer_metadata_path.exists():
         return DataFrame({"value": []}).set_index("value")
@@ -35,16 +45,28 @@ def load_gcbm_attributes_to_dataframe(layer_path):
     return df
     
 def create_bounding_box(bounding_box_path, bounding_box_filter=None, pixel_size=0.001, cache=None):
+    '''
+    Creates a catplotlib bounding box from a raster or vector layer with an optional
+    attribute filter, if using a vector layer.
+
+    Arguments:
+    'bounding_box_path' -- path to the raster or vector layer to use as the bounding box
+    'bounding_box_filter' -- single-entry dict of layer attribute to filter value
+    'pixel_size' -- resolution for the new bounding box, default 0.001 (~1ha)
+    'cache' -- catplotlib cache, if calling from another script
+
+    Returns the new catplotlib-format BoundingBox.
+    '''
     bounding_box_path = Path(bounding_box_path).absolute()
-    layer_args = ["bbox", str(bounding_box_path)]
+    layer_args = {"name": "bbox", "path": str(bounding_box_path)}
     if bounding_box_path.suffix in (".tif", ".tiff"):
-        moja_bbox = moja.BoundingBox(RasterLayer(*layer_args), pixel_size=pixel_size)
+        moja_bbox = moja.BoundingBox(RasterLayer(**layer_args), pixel_size=pixel_size)
     elif bounding_box_path.suffix == ".shp":
         if bounding_box_filter:
             attr_name, attr_value = next(iter(bounding_box_filter.items()))
-            layer_args.append(Attribute(attr_name, filter=ValueFilter(attr_value)))
+            layer_args["attributes"] = Attribute(attr_name, filter=ValueFilter(attr_value))
         
-        moja_bbox = moja.BoundingBox(VectorLayer(*layer_args), pixel_size=pixel_size)
+        moja_bbox = moja.BoundingBox(VectorLayer(**layer_args), pixel_size=pixel_size)
     else:
         raise RuntimeError("Unsupported bounding box type")
 
@@ -59,7 +81,7 @@ def create_bounding_box(bounding_box_path, bounding_box_filter=None, pixel_size=
     
     return catplotlib_bbox
 
-def process_layer(layer_path, bounding_box=None, cache=None):
+def _process_layer(layer_path, bounding_box=None, cache=None):
     layer_attribute_table = load_gcbm_attributes_to_dataframe(layer_path)
         
     layer = (
@@ -83,6 +105,25 @@ def get_area_by_gcbm_attributes(
     pattern, bounding_box_path=None, bounding_box_filter=None,
     output_path="area_by_gcbm_attributes.csv"
 ):
+    '''
+    Summarize a stack of rasters by area in hectares and unique combinations of
+    pixel and/or attribute values in each layer - NOT an overlay, but can be used,
+    for example, to summarize a stack of GCBM disturbance layers into a table of
+    area by disturbance type and year.
+    
+    Will detect and load the tiler attribute table for each layer if present.
+
+    Arguments:
+    'pattern' -- layer pattern to search for
+    'bounding_box_path' -- optional bounding box path to crop the summary by
+    'bounding_box_filter' -- optional attribute filter to apply to the bounding box,
+        if using a vector layer; expects a dict with a single entry of attribute name
+        to the value to filter by
+    'output_path' -- optional path to a csv file to write the results to, or None to
+        skip writing to a file
+        
+    Returns a DataFrame containing the area summary.
+    '''
     cache = get_cache()    
 
     if output_path:
@@ -110,7 +151,7 @@ def get_area_by_gcbm_attributes(
         tasks = []
         for layer_path in layer_paths:
             tasks.append(pool.apply_async(
-                process_layer,
+                _process_layer,
                 (layer_path, bounding_box, cache)
             ))
         

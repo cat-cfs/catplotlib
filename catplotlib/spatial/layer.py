@@ -1,14 +1,15 @@
 import json
 import logging
 import subprocess
-from tkinter import Y
 import numpy as np
+import pandas as pd
+from pathlib import Path
 from pandas import DataFrame
-from itertools import chain
 from enum import Enum
 from string import ascii_uppercase
 from catplotlib.util import gdal
 from mojadata.util.gdal_calc import Calc
+from mojadata.util.gdalhelper import GDALHelper
 from geopy.distance import distance
 from catplotlib.util.config import gdal_creation_options
 from catplotlib.util.config import gdal_memory_limit
@@ -123,8 +124,14 @@ class Layer:
     @property
     def nodata_value(self):
         '''Gets this layer's nodata value in its correct Python type.'''
-        value = self.info["bands"][0]["noDataValue"]
         dt = str(self.data_type).lower()
+        value = self.info["bands"][0].get("noDataValue")
+        if value is None or str(value).lower() == "nan":
+            value = GDALHelper.float32_range[0] if (
+                dt == "float32" or dt == "float" or dt == str(gdal.GDT_Float32)
+                or dt == "float64" or dt == str(gdal.GDT_Float64)
+            ) else GDALHelper.int32_range[0]
+
         if (dt == "float32" or dt == "float" or dt == str(gdal.GDT_Float32)
             or dt == "float64" or dt == str(gdal.GDT_Float64)
         ):
@@ -184,13 +191,13 @@ class Layer:
 
         output_path = TempFileManager.mktmp(suffix=".tif")
         one_hectare = 100 ** 2
-
+        nodata_value = self.nodata_value
         simple_conversion_calc = None
         if current_per_ha == new_per_ha:
             simple_conversion_calc = " ".join((
                 f"(A.astype(numpy.float64) * {unit_conversion})",
-                f"* (A != {self.nodata_value})",
-                f"+ ((A == {self.nodata_value}) * {self.nodata_value})"))
+                f"* (A != {nodata_value})",
+                f"+ ((A == {nodata_value}) * {nodata_value})"))
         elif not self.is_lat_lon:
             per_ha_conversion_op = "*" if current_per_ha else "/"
             _, pixel_size, *_ = self.info["geoTransform"]
@@ -198,11 +205,11 @@ class Layer:
             per_ha_modifier = pixel_size_m2 / one_hectare if current_per_ha != new_per_ha else 1
             simple_conversion_calc = " ".join((
                 f"(A.astype(numpy.float64) * {unit_conversion} {per_ha_conversion_op} {per_ha_modifier})",
-                f"* (A != {self.nodata_value})",
-                f"+ ((A == {self.nodata_value}) * {self.nodata_value})"))
+                f"* (A != {nodata_value})",
+                f"+ ((A == {nodata_value}) * {nodata_value})"))
 
         if simple_conversion_calc:
-            Calc(simple_conversion_calc, output_path, self.nodata_value, quiet=True,
+            Calc(simple_conversion_calc, output_path, nodata_value, quiet=True,
                  creation_options=gdal_creation_options, overwrite=True, A=self.path)
 
             return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
@@ -211,10 +218,10 @@ class Layer:
         per_ha_conversion_op = "*" if current_per_ha else "/"
         calc = " ".join((
             f"(A.astype(numpy.float64) * {unit_conversion} {per_ha_conversion_op} B)",
-            f"* (A != {self.nodata_value})",
-            f"+ ((A == {self.nodata_value}) * {self.nodata_value})"))
+            f"* (A != {nodata_value})",
+            f"+ ((A == {nodata_value}) * {nodata_value})"))
 
-        Calc(calc, output_path, self.nodata_value, quiet=True, creation_options=gdal_creation_options,
+        Calc(calc, output_path, nodata_value, quiet=True, creation_options=gdal_creation_options,
              overwrite=True, A=self.path, B=area_raster_path)
         
         return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
@@ -275,38 +282,52 @@ class Layer:
 
     def summarize(self):
         '''
-        Returns a summary of this layer's area in hectares by pixel value.
+        Returns a summary of this layer's area in hectares by unique pixel value.
+        '''
+        nodata_value = self.nodata_value
+        pixel_areas = DataFrame()
+        for chunk in self.read():
+            pixel_areas = pd.concat(
+                [pixel_areas, chunk[chunk != nodata_value]]
+            ).groupby([c for c in chunk.columns if c != "area"]).sum()
+    
+        return pixel_areas
+    
+    def read(self, chunk_size=5000):
+        '''
+        Read this layer in flattened chunks along with the attribute table (if applicable)
+        and pixel area to help with overlays and summaries.
+        
+        Yields each chunk of data from the raster as a flattened DataFrame joined to per-
+        pixel area, columns: value (pixel value), interpretation (if applicable), area (hectares).
         '''
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
-        nodata_value = self.nodata_value
         one_hectare = 100 ** 2
         
-        pixel_areas = DataFrame({"value": [], "area": []}).set_index("value")
         area_band = None
-        for chunk in self._chunk():
-            raster_data = band.ReadAsArray(*chunk)
+        for chunk in self._chunk(chunk_size):
+            raster_data = DataFrame(band.ReadAsArray(*chunk).flatten(), columns=["value"])
+            if self.has_interpretation:
+                raster_data = raster_data.join(DataFrame(
+                    self._interpretation.values(), self._interpretation.keys(),
+                    columns=["interpretation"]
+                ), on="value").fillna("")
+
             if not self.is_lat_lon:
                 _, pixel_size, *_ = self.info["geoTransform"]
                 pixel_size_m2 = float(pixel_size) ** 2
-                values, counts = np.unique(raster_data[raster_data != nodata_value], return_counts=True)
-                pixel_areas = pixel_areas.add(DataFrame({
-                    "value": values, "area": counts * pixel_size_m2 / one_hectare
-                }).set_index("value"), fill_value=0)
+                raster_data["area"] = pixel_size_m2 / one_hectare
             else:
                 if not area_band:
                     area_raster_path = self.get_area_raster()
                     area_raster = gdal.Open(area_raster_path)
                     area_band = area_raster.GetRasterBand(1)
                 
-                unique_values = np.unique(raster_data[raster_data != nodata_value])
-                area_data = area_band.ReadAsArray(*chunk)
-                pixel_areas = pixel_areas.add(DataFrame({
-                    "value": unique_values,
-                    "area": [area_data[raster_data == px].sum() for px in unique_values]
-                }).set_index("value"), fill_value=0)
+                area_data = DataFrame(area_band.ReadAsArray(*chunk).flatten(), columns=["area"])
+                raster_data = raster_data.join(area_data)
     
-        return pixel_areas
+            yield raster_data
     
     def area_grid(self, chunk_size=5000):
         '''
@@ -394,8 +415,9 @@ class Layer:
         
         Returns a new reclassified Layer object.
         '''
+        orig_ndv = self.nodata_value
         if ((self.interpretation and self.interpretation.items() <= new_interpretation.items())
-            and nodata_value == self.nodata_value
+            and nodata_value == orig_ndv
         ):
             logging.debug(f"Attribute table already matches, skipping reclassify for {self._path}")
             return self
@@ -405,7 +427,6 @@ class Layer:
 
         output_path = TempFileManager.mktmp(suffix=".tif")
         inverse_new_interpretation = {v: k for k, v in new_interpretation.items()}
-        orig_ndv = self.nodata_value
 
         px_calcs = (
             f"((A == {original_px}) * {inverse_new_interpretation.get(original_interp, nodata_value)})"
@@ -440,15 +461,16 @@ class Layer:
         '''
         gdal.SetCacheMax(gdal_memory_limit)
         logging.debug(f"Flattening {self._path}")
+        nodata_value = self.nodata_value
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
         raster_data = band.ReadAsArray()
         if self.has_interpretation:
-            raster_data[np.isin(raster_data, list(self._interpretation.keys()), invert=True)] = self.nodata_value
+            raster_data[np.isin(raster_data, list(self._interpretation.keys()), invert=True)] = nodata_value
         
-        raster_data[raster_data != self.nodata_value] = flattened_value
+        raster_data[raster_data != nodata_value] = flattened_value
         output_path = TempFileManager.mktmp(suffix=".tif")
-        self._save_as(raster_data, self.nodata_value, output_path)
+        self._save_as(raster_data, nodata_value, output_path)
         flattened_layer = Layer(output_path, self.year,
                                 units=self._units if preserve_units else Units.Blank,
                                 cache=self._cache)
@@ -479,22 +501,23 @@ class Layer:
         'layers' -- one or more other layers to blend paired with the blend mode, i.e.
             some_layer.blend(layer_a, BlendMode.Add, layer_b, BlendMode.Subtract)
         '''
+        nodata_value = self.nodata_value
         blend_layers = {
             ascii_uppercase[i]: (layer.convert_units(self._units), blend_mode)
             for i, (layer, blend_mode) in enumerate(zip(layers[::2], layers[1::2]), 1)
         }
 
-        calc = f"(A * (A != {self.nodata_value}) "
+        calc = f"(A * (A != {nodata_value}) "
         calc += " ".join((
             f"{blend_mode.value} ({layer_key} * ({layer_key} != {layer.nodata_value}))"
             for layer_key, (layer, blend_mode) in blend_layers.items()))
 
-        calc += f") + (((A == {self.nodata_value}) * "
+        calc += f") + (((A == {nodata_value}) * "
         calc += " * ".join((
             f"({layer_key} == {layer.nodata_value})"
             for layer_key, (layer, blend_mode) in blend_layers.items()))
 
-        calc += f") * {self.nodata_value})"
+        calc += f") * {nodata_value})"
         
         calc_args = {
             layer_key: layer.path
@@ -504,7 +527,7 @@ class Layer:
         logging.debug(f"Blending {calc_args} using: {calc}")
         output_path = TempFileManager.mktmp(suffix=".tif")
         gdal.SetCacheMax(gdal_memory_limit)
-        Calc(calc, output_path, self.nodata_value, quiet=True, creation_options=gdal_creation_options,
+        Calc(calc, output_path, nodata_value, quiet=True, creation_options=gdal_creation_options,
              overwrite=True, hideNoData=True, A=self.path, **calc_args)
 
         return Layer(output_path, self._year, self._interpretation, self._units, cache=self._cache)
