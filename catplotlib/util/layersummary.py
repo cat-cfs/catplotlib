@@ -76,8 +76,9 @@ def create_bounding_box(bounding_box_path, bounding_box_filter=None, pixel_size=
         except:
             # Empty bounding box.
             return None
-        
-    catplotlib_bbox = BoundingBox("bounding_box.tiff", cache=cache)
+    
+    final_bbox_path = next(Path().glob("bounding_box.ti*"))
+    catplotlib_bbox = BoundingBox(str(final_bbox_path), cache=cache)
     
     return catplotlib_bbox
 
