@@ -285,11 +285,16 @@ class Layer:
         Returns a summary of this layer's area in hectares by unique pixel value.
         '''
         nodata_value = self.nodata_value
-        pixel_areas = DataFrame()
+        pixel_areas = None
         for chunk in self.read():
-            pixel_areas = pd.concat(
-                [pixel_areas, chunk[chunk != nodata_value]]
-            ).groupby([c for c in chunk.columns if c != "area"]).sum()
+            if pixel_areas is None:
+                pixel_areas = (
+                    chunk[chunk != nodata_value]
+                ).groupby([c for c in chunk.columns if c != "area"]).sum()
+            else:
+                pixel_areas = pd.concat(
+                    [pixel_areas, chunk[chunk != nodata_value]]
+                ).groupby([c for c in chunk.columns if c != "area"]).sum()
     
         return pixel_areas
     
@@ -356,8 +361,9 @@ class Layer:
             chunk_y_min = ymin + y_px_start * y_res
             chunk_y_max = chunk_y_min + y_size * y_res
             lats = np.arange(chunk_y_min, chunk_y_max, y_res)[:y_size]
-            area = np.abs(np.ones(x_size)[:, None] * resolution**2 * earth_diameter_m_per_deg**2
-                            * np.cos(lats * pi / 180.0) / m_per_hectare)
+            area = np.abs(
+                  np.ones(x_size)[:, None] * resolution**2 * earth_diameter_m_per_deg**2
+                * np.cos(lats * pi / 180.0) / m_per_hectare)
         
             yield area.T, (x_px_start, y_px_start)
 
