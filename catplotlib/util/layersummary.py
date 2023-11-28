@@ -141,7 +141,12 @@ def get_area_by_gcbm_attributes(
         output_path = Path(output_path)
         output_path.unlink(True)
     
-    layer_paths = list(Path().glob(pattern))
+    initial_path = "."
+    if "\\" in pattern:
+        pattern_root, pattern = pattern.split("\\", 1)
+        initial_path = pattern_root + "\\"
+        
+    layer_paths = list(Path(initial_path).glob(pattern))
     if not layer_paths:
         return DataFrame()
     

@@ -289,13 +289,15 @@ class Layer:
         for chunk in self.read():
             if pixel_areas is None or pixel_areas.empty:
                 pixel_areas = (
-                    chunk[chunk != nodata_value]
+                    chunk[chunk["value"] != nodata_value]
                 ).groupby([c for c in chunk.columns if c != "area"]).sum().reset_index()
             else:
                 pixel_areas = pd.concat(
-                    [pixel_areas, chunk[chunk != nodata_value]]
+                    [pixel_areas, chunk[chunk["value"] != nodata_value]]
                 ).groupby([c for c in chunk.columns if c != "area"]).sum().reset_index()
     
+        pixel_areas = pixel_areas.set_index("value")
+        
         return pixel_areas
     
     def read(self, chunk_size=5000):
