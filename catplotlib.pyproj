@@ -39,6 +39,7 @@
     <Compile Include="catplotlib\reporting\style\stylemanager.py" />
     <Compile Include="catplotlib\reporting\style\symbols.py" />
     <Compile Include="catplotlib\reporting\style\__init__.py" />
+    <Compile Include="catplotlib\scripts\catsummarize.py" />
     <Compile Include="catplotlib\scripts\catoverlay.py" />
     <Compile Include="catplotlib\util\cache.py">
       <SubType>Code</SubType>

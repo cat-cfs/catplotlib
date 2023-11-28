@@ -31,14 +31,24 @@ def load_gcbm_attributes_to_dataframe(layer_path):
     if not layer_metadata_path.exists():
         return DataFrame({"value": []}).set_index("value")
     
-    layer_attribute_table = json.load(open(layer_metadata_path, "rb"))["attributes"]
-    attributes = set(chain(*(item.keys() for item in layer_attribute_table.values())))
+    layer_attribute_table = json.load(open(layer_metadata_path, "rb")).get("attributes")
+    if not layer_attribute_table:    
+        return DataFrame({"value": []}).set_index("value")
+
+    attributes = (
+        set(chain(*(item.keys() for item in layer_attribute_table.values())))
+        if isinstance(next(iter(layer_attribute_table.values())), dict)
+        else {layer_path.stem}
+    )
     
     transformed_attribute_values = defaultdict(list)
     for px, interpretation in layer_attribute_table.items():
         transformed_attribute_values["value"].append(int(px))
         for attr in attributes:
-            transformed_attribute_values[attr].append(interpretation.get(attr, "null"))
+            transformed_attribute_values[attr].append(
+                interpretation.get(attr, "null") if isinstance(interpretation, dict)
+                else interpretation
+            )
             
     df = DataFrame(transformed_attribute_values).set_index("value")
     
