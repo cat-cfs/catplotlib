@@ -602,6 +602,22 @@ class Layer:
 
         return Frame(self._year, rendered_layer_path, self.scale)
 
+    def blank_copy(self, output_path=None):
+        if not output_path:
+            output_path = TempFileManager.mktmp(suffix=".tif")
+        
+        gdal.SetCacheMax(gdal_memory_limit)
+        driver = gdal.GetDriverByName("GTiff")
+        original_raster = gdal.Open(self._path)
+        new_raster = driver.CreateCopy(output_path, original_raster, strict=0,
+                                       options=gdal_creation_options)
+
+        del original_raster
+        band = new_raster.GetRasterBand(1)
+        band.WriteArray(np.full((band.YSize, band.XSize), self.nodata_value))
+
+        return output_path
+
     def _chunk(self, chunk_size=5000):
         '''Chunks this layer up for reading or writing.'''
         width, height = self.info["size"]
@@ -622,12 +638,8 @@ class Layer:
                 yield (x_px_start, y_px_start, x_size, y_size)
 
     def _save_as(self, data, nodata_value, output_path):
-        gdal.SetCacheMax(gdal_memory_limit)
-        driver = gdal.GetDriverByName("GTiff")
-        original_raster = gdal.Open(self._path)
-        new_raster = driver.CreateCopy(output_path, original_raster, strict=0,
-                                       options=gdal_creation_options)
-
+        self.blank_copy(output_path)
+        new_raster = gdal.Open(output_path, gdal.GA_Update)
         band = new_raster.GetRasterBand(1)
         band.SetNoDataValue(nodata_value)
         band.WriteArray(data)

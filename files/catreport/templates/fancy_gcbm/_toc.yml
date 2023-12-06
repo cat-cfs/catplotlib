@@ -1,0 +1,8 @@
+format: jb-book
+root: 01_misc
+options:
+  caption: GCBM Results
+chapters:
+- file: 02_wildfire
+- file: 03_harvest
+- file: 04_net_emissions

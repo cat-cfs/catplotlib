@@ -63,11 +63,11 @@ class SqliteGcbmResultsProvider(ResultsProvider):
 
     def has_indicator(self, indicator):
         '''See ResultsProvider.has_indicator'''
-        return self._find_indicator_table(indicator)[0] is not None
+        return self.find_indicator_table(indicator)[0] is not None
 
     def get_annual_result(self, indicator, start_year=None, end_year=None, units=Units.Tc, **kwargs):
         '''See GcbmResultsProvider.get_annual_result.'''
-        table, value_col = self._find_indicator_table(indicator)
+        table, value_col = self.find_indicator_table(indicator)
         if not table:
             return
 
@@ -100,10 +100,10 @@ class SqliteGcbmResultsProvider(ResultsProvider):
 
         return df
 
-    def _find_indicator_table(self, indicator):
+    def find_indicator_table(self, indicator):
         conn = sqlite3.connect(self._paths[0])
         for table, value_col in SqliteGcbmResultsProvider.results_tables.items():
-            if conn.execute(f"SELECT 1 FROM {table} WHERE indicator = ?", [indicator]).fetchone():
+            if conn.execute(f"SELECT 1 FROM {table} WHERE LOWER(indicator) = LOWER(?)", [indicator]).fetchone():
                 return table, value_col
 
         return None, None
