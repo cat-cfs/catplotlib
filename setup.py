@@ -4,7 +4,7 @@ from glob import glob
 
 setup(
     name="catplotlib",
-    version="3.6.5",
+    version="3.7.0",
     description="catplotlib",
     long_description="catplotlib",
     url="",
@@ -47,7 +47,7 @@ setup(
         ("Tools/catplotlib/catreport/templates/basic_gcbm",     glob("files/catreport/templates/basic_gcbm/*")),
         ("Tools/catplotlib/catreport/templates/multipage_gcbm", glob("files/catreport/templates/multipage_gcbm/*")),
         ("Tools/catplotlib/catreport/templates/tabbed_gcbm",    glob("files/catreport/templates/tabbed_gcbm/*")),
-        ("Tools/catplotlib/catreport/templates/fancy_gcbm",    glob("files/catreport/templates/fancy_gcbm/*")),
+        ("Tools/catplotlib/catreport/templates/fancy_gcbm",     glob("files/catreport/templates/fancy_gcbm/*")),
     ],
     entry_points={
         "console_scripts": [
@@ -55,6 +55,7 @@ setup(
             "catreport = catplotlib.scripts.catreport:cli",
             "catoverlay = catplotlib.scripts.catoverlay:cli",
             "catsummarize = catplotlib.scripts.catsummarize:cli",
+            "catstat = catplotlib.scripts.catstat:cli",
         ]
     },
     python_requires=">=3.7"

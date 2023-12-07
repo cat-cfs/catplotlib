@@ -70,7 +70,7 @@ class BoundingBox(Layer):
 
         return self._min_geographic_bounds
 
-    def crop(self, layer):
+    def crop(self, layer, crop_to_data=True):
         '''
         Crops a Layer to the minimum spatial extent and nodata pixels of this
         bounding box.
@@ -94,6 +94,9 @@ class BoundingBox(Layer):
                                 self.info["cornerCoordinates"]["lowerRight"][0],
                                 self.info["cornerCoordinates"]["upperLeft"][1]))
         
+        if not crop_to_data:
+            return Layer(tmp_path, layer.year, layer.interpretation, layer.units, self._cache)
+
         # Clip to bounding box nodata mask.
         calc = "A * (B != {0}) + ((B == {0}) * {1})".format(self.nodata_value, layer.nodata_value)
         output_path = TempFileManager.mktmp(suffix=".tif")

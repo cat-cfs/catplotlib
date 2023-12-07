@@ -603,6 +603,16 @@ class Layer:
         return Frame(self._year, rendered_layer_path, self.scale)
 
     def blank_copy(self, output_path=None):
+        '''
+        Creates a blank (all nodata) copy of this layer with the same projection,
+        resolution, and extent.
+
+        Arguments:
+        'output_path' -- path to the new layer to create, or omit to create a
+            temporary layer.
+        
+        Returns the path to the blank copy.
+        '''
         if not output_path:
             output_path = TempFileManager.mktmp(suffix=".tif")
         
@@ -613,8 +623,10 @@ class Layer:
                                        options=gdal_creation_options)
 
         del original_raster
+        nodata_value = self.nodata_value
         band = new_raster.GetRasterBand(1)
-        band.WriteArray(np.full((band.YSize, band.XSize), self.nodata_value))
+        band.SetNoDataValue(nodata_value)
+        band.WriteArray(np.full((band.YSize, band.XSize), nodata_value))
 
         return output_path
 
