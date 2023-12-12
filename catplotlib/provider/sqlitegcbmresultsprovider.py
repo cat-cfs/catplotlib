@@ -56,7 +56,7 @@ class SqliteGcbmResultsProvider(ResultsProvider):
             area += conn.execute(
                 """
                 SELECT SUM(area) FROM v_age_indicators
-                WHERE year = (SELECT MIN(year) FROM v_age_indicators WHERE year > 0)
+                WHERE year = (SELECT MAX(year) FROM v_age_indicators)
                 """).fetchone()[0]
 
         return area
