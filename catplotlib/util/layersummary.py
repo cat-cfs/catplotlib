@@ -107,8 +107,10 @@ def _process_layer(layer_path, bounding_box=None, cache=None):
         layer.summarize()
             .join(layer_attribute_table)
             .reset_index()
-            .drop("value", axis=1)
     )
+
+    if not (len(layer_data.columns) == 2 and "value" in layer_data.columns):
+        layer_data = layer_data.drop("value", axis=1)
 
     return layer_data        
 
