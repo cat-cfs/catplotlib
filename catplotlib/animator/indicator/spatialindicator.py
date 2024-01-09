@@ -3,6 +3,7 @@ import logging
 import pandas as pd
 from collections import defaultdict
 from collections import OrderedDict
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from glob import glob
 from multiprocessing import Pool
@@ -42,11 +43,13 @@ class SpatialIndicator(ResultsProvider):
         frames.
     'colorizer' -- a Colorizer to create the map legend with - defaults to
         basic Colorizer which bins values into equal-sized buckets.
+    'simulation_start_year' -- if using multiband layers, the year that band 1
+        (timestep 1) corresponds to.
     '''
 
     def __init__(self, indicator, layer_pattern, title=None, graph_units=Units.Tc,
                  map_units=Units.TcPerHa, background_color=(255, 255, 255),
-                 colorizer=None):
+                 colorizer=None, simulation_start_year=None):
         self._indicator = indicator
         self._layer_pattern = layer_pattern
         self._title = title or indicator
@@ -57,6 +60,7 @@ class SpatialIndicator(ResultsProvider):
         self._last_bbox_path = None
         self._layers = None
         self._cropped_layers = None
+        self._simulation_start_year = simulation_start_year
 
     @property
     def title(self):
@@ -171,6 +175,7 @@ class SpatialIndicator(ResultsProvider):
         if not self._layers:
             logging.info("Preparing layers")
             self._find_layers()
+            self._ensure_unpacked()
     
         if not bounding_box:
             logging.info("Using cached base layers")
@@ -193,11 +198,17 @@ class SpatialIndicator(ResultsProvider):
         if isinstance(self._layer_pattern, tuple):
             pattern, units = self._layer_pattern
             
-        for pattern in ([pattern] if isinstance(pattern, str) else pattern):
-            for layer_path in glob(pattern):
-                year = os.path.splitext(layer_path)[0][-4:]
-                layer = Layer(layer_path, year, units=units)
-                layers_by_year[layer.year].append(layer)
+        for p in ([pattern] if isinstance(pattern, str) else pattern):
+            for layer_path in glob(p):
+                layer_path_name = Path(layer_path).stem
+                if not Layer(layer_path).is_multiband:
+                    year = layer_path_name.rsplit("_", 1)[1]
+                    layer = Layer(layer_path, year, units=units)
+                    layers_by_year[layer.year].append(layer)
+                else:
+                    layer = Layer(layer_path, simulation_start_year=self._simulation_start_year, units=units)
+                    for sublayer in layer.unpack():
+                        layers_by_year[sublayer.year].append(sublayer)
 
         if not layers_by_year:
             raise IOError(f"No spatial output found for pattern: {self._layer_pattern}")
@@ -219,3 +230,11 @@ class SpatialIndicator(ResultsProvider):
 
     def _find_year(self, layers, year):
         return next(filter(lambda layer: layer.year == year, layers), None)
+
+    def _ensure_unpacked(self):
+        if self._layers and any((l.is_multiband for l in self._layers)):
+            unpacked_layers = []
+            for layer in self._layers:
+                unpacked_layers.extend(layer.unpack())
+
+            self._layers = unpacked_layers

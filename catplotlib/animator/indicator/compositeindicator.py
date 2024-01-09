@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path
 from glob import glob
 from multiprocessing import Pool
 from catplotlib.animator.indicator.indicator import Indicator
@@ -31,16 +32,20 @@ class CompositeIndicator(Indicator):
         frames.
     'colorizer' -- a Colorizer to create the map legend with - defaults to
         simple Colorizer which bins values into equal-sized buckets.
+    'simulation_start_year' -- if using multiband layers, the year that band 1
+        (timestep 1) corresponds to.
     '''
 
     def __init__(self, indicator, patterns, title=None, graph_units=Units.Tc,
-                 map_units=Units.TcPerHa, background_color=(255, 255, 255), colorizer=None):
+                 map_units=Units.TcPerHa, background_color=(255, 255, 255), colorizer=None,
+                 simulation_start_year=None):
 
         super().__init__(indicator, None, None, None, title, graph_units, map_units,
                          background_color, colorizer)
 
         self._patterns = patterns
         self._composite_layers = None
+        self._simulation_start_year = simulation_start_year
 
     def render_map_frames(self, bounding_box=None, start_year=None, end_year=None):
         '''
@@ -94,13 +99,21 @@ class CompositeIndicator(Indicator):
         with Pool(pool_workers) as pool:
             tasks = []
             for layer_path in glob(pattern):
-                year = os.path.splitext(layer_path)[0][-4:]
-                layer = Layer(layer_path, year, units=units)
-                if bounding_box:
-                    tasks.append(pool.apply_async(bounding_box.crop, (layer,)))
+                if not Layer(layer_path).is_multiband:
+                    year = Path(layer_path).stem.rsplit("_", 1)[1]
+                    layer = Layer(layer_path, year, units=units)
+                    if bounding_box:
+                        tasks.append(pool.apply_async(bounding_box.crop, (layer,)))
+                    else:
+                        layers.append(layer)
                 else:
-                    layers.append(layer)
-
+                    layer = Layer(layer_path, simulation_start_year=self._simulation_start_year, units=units)
+                    for sublayer in layer.unpack():
+                        if bounding_box:
+                            tasks.append(pool.apply_async(bounding_box.crop, (sublayer,)))
+                        else:
+                            layers.append(sublayer)
+            
             layers.extend((task.get() for task in tasks))
 
         if not layers:

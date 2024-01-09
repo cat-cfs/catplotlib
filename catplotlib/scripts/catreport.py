@@ -36,7 +36,7 @@ def write_provider_strings(template_path, results_dbs, bounding_box=None):
 def cli():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
-    parser = ArgumentParser(description="Create output report")
+    parser = ArgumentParser(description="Create output report.")
     parser.add_argument("report_path", help="Path to generate report in")
     parser.add_argument("results", nargs="+", help="Path(s) to results databases in the format `label:path`, i.e. `My_Simulation:c:\runs\foo.db`")
     parser.add_argument("--template", help="Generate report from specified template", default="basic_gcbm")

@@ -26,10 +26,8 @@ def _normalize_layers(layer_paths, cache):
     with Pool() as pool:
         tasks = []
         for layer_path in layer_paths:
-            tasks.append(pool.apply_async(
-                bounding_box.crop,
-                (Layer(str(layer_path), 0, cache=cache), False)
-            ))
+            for layer in Layer(layer_path).unpack():
+                tasks.append(pool.apply_async(bounding_box.crop, (layer, False)))
         
         pool.close()
         pool.join()

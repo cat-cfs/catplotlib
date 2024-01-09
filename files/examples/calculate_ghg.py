@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 from glob import glob
+from pathlib import Path
 from aenum import extend_enum
 from multiprocessing import Pool
 from argparse import ArgumentParser
@@ -21,7 +22,7 @@ def find_layers(pattern, units=None):
 
     layers = []
     for layer_path in glob(pattern):
-        year = os.path.splitext(layer_path)[0][-4:]
+        year = Path(layer_path).stem.rsplit("_", 1)[1]
         layers.append(Layer(layer_path, year, units=units))
 
     if not layers:

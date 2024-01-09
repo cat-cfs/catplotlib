@@ -27,12 +27,12 @@ def cli():
         format="%(asctime)s %(message)s", datefmt="%m/%d %H:%M:%S")
 
     parser = ArgumentParser(
-        description="Calculate a per-pixel statistic from a stack of layers onto a single output layer",
-        epilog="also accepts any extra keyword args for the selected numpy function"
+        description="Calculate a per-pixel statistic from a stack of layers onto a single output layer.",
+        epilog="Any extra --options are passed along to the selected numpy function."
     )
     
     parser.add_argument("pattern", help="File pattern to process")
-    parser.add_argument("output_path", type=Path, help="Path to tif file to write results to")
+    parser.add_argument("output_path", type=Path, help="Path to output tif file")
     parser.add_argument("numpy_fn", help="numpy function to apply")
     parser.add_argument("numpy_args", nargs="*", help="numpy positional args")
     parser.add_argument("--chunk_size", help="Chunk size to use when processing layers", default=5000)

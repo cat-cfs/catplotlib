@@ -1,6 +1,6 @@
-import os
 import pandas as pd
 from multiprocessing import Pool
+from pathlib import Path
 from glob import glob
 from collections import defaultdict
 from collections import OrderedDict
@@ -25,18 +25,23 @@ class SpatialGcbmResultsProvider(ResultsProvider):
         native units of the layers (default: TcPerHa).
     'layers' -- instead of specifying a file pattern to search for, a list of Layer
         objects can be provided directly.
+    'simulation_start_year' -- if using multiband layers, the year that band 1
+        (timestep 1) corresponds to.
     '''
 
-    def __init__(self, pattern=None, layers=None, *args, **kwargs):
+    def __init__(self, pattern=None, layers=None, simulation_start_year=None, *args, **kwargs):
         self._pattern = pattern
         self._layers = layers
+        self._simulation_start_year = simulation_start_year
         if not (pattern or layers):
             raise RuntimeError("Must provide either a file pattern or a list of Layer objects")
 
     @property
     def simulation_years(self):
         '''See GcbmResultsProvider.simulation_years.'''
-        if not self._layers:
+        if self._layers:
+            self._ensure_unpacked()
+        else:
             self._find_layers()
 
         return min((l.year for l in self._layers)), max((l.year for l in self._layers))
@@ -44,7 +49,9 @@ class SpatialGcbmResultsProvider(ResultsProvider):
     def get_annual_result(self, indicator, start_year=None, end_year=None,
                           units=Units.Tc, bounding_box=None, **kwargs):
         '''See ResultsProvider.get_annual_result.'''
-        if not self._layers:
+        if self._layers:
+            self._ensure_unpacked()
+        else:
             self._find_layers()
 
         if not start_year or not end_year:
@@ -79,9 +86,14 @@ class SpatialGcbmResultsProvider(ResultsProvider):
             
         for p in ([pattern] if isinstance(pattern, str) else pattern):
             for layer_path in glob(p):
-                year = os.path.splitext(layer_path)[0][-4:]
-                layer = Layer(layer_path, year, units=units)
-                layers_by_year[layer.year].append(layer)
+                if not Layer(layer_path).is_multiband:
+                    year = Path(layer_path).stem.rsplit("_", 1)[1]
+                    layer = Layer(layer_path, year, units=units)
+                    layers_by_year[layer.year].append(layer)
+                else:
+                    layer = Layer(layer_path, simulation_start_year=self._simulation_start_year, units=units)
+                    for sublayer in layer.unpack():
+                        layers_by_year[sublayer.year].append(sublayer)
 
         if not layers_by_year:
             raise IOError(f"No spatial output found for pattern: {p}")
@@ -103,3 +115,11 @@ class SpatialGcbmResultsProvider(ResultsProvider):
 
     def _find_year(self, layers, year):
         return next(filter(lambda layer: layer.year == year, layers), None)
+
+    def _ensure_unpacked(self):
+        if self._layers and any((l.is_multiband for l in self._layers)):
+            unpacked_layers = []
+            for layer in self._layers:
+                unpacked_layers.extend(layer.unpack())
+
+            self._layers = unpacked_layers

@@ -86,7 +86,8 @@ class DisturbanceLayerConfigurer:
         return layer_collection
 
     def configure_output(self, spatial_results, db_results, dist_type_filter=None,
-                         dist_type_substitutions=None, min_year=None, max_year=None):
+                         dist_type_substitutions=None, min_year=None, max_year=None,
+                         simulation_start_year=None):
         '''
         Uses output of GCBM's optional disturbance monitor module for the disturbances in the
         animation.
@@ -99,6 +100,7 @@ class DisturbanceLayerConfigurer:
             to new names.
         'min_year' -- only include disturbance layers with year greater than or equal to this.
         'max_year' -- only include disturbance layers with year less than or equal to this.
+        'simulation_start_year' -- the simulation start year, if using multiband output.
         '''
         if not db_results or not os.path.exists(db_results):
             raise IOError(f"Compiled results database not specified or not found.")
@@ -120,14 +122,27 @@ class DisturbanceLayerConfigurer:
             lambda fn: os.path.splitext(fn)[1] in (".tif", ".tiff"),
             glob(os.path.join(spatial_results, "current_disturbance*.ti*"))
         ):
-            year = int(os.path.splitext(os.path.basename(layer))[0].split("_")[-1])
-            if not (
-                (year >= min_year if min_year else True)
-                and (year <= max_year if max_year else True)
-            ):
-                continue
+            if not Layer(layer).is_multiband:
+                year = int(os.path.splitext(os.path.basename(layer))[0].rsplit("_", 1)[1])
+                if not (
+                    (year >= min_year if min_year else True)
+                    and (year <= max_year if max_year else True)
+                ):
+                    continue
 
-            layer_collection.append(Layer(layer, year, layer_attribute_table, Units.Blank))
+                layer_collection.append(Layer(layer, year, layer_attribute_table, Units.Blank))
+            else:
+                for sublayer in Layer(
+                    layer, interpretation=layer_attribute_table, units=Units.Blank,
+                    simulation_start_year=simulation_start_year
+                ).unpack():
+                    if not (
+                        (sublayer.year >= min_year if min_year else True)
+                        and (sublayer.year <= max_year if max_year else True)
+                    ):
+                        continue
+
+                    layer_collection.append(sublayer)
 
         return layer_collection
 

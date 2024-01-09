@@ -37,7 +37,7 @@ class Colorizer:
         max_value = max((layer.min_max[1] for layer in layers)) + 0.5
         bin_size = (max_value - min_value) / self._bins
             
-        colors = self._create_colors(self._palette, self._bins)
+        colors = iter(self._create_colors(self._palette, self._bins))
 
         legend = {}
         for i in range(self._bins):

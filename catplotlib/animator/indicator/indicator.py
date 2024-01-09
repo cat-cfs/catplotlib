@@ -1,6 +1,6 @@
-import os
 import logging
 from glob import glob
+from pathlib import Path
 from catplotlib.animator.color.colorizer import Colorizer
 from catplotlib.provider.units import Units
 from catplotlib.spatial.layer import Layer
@@ -123,10 +123,17 @@ class Indicator:
 
         patterns = [pattern] if isinstance(pattern, str) else pattern
         layers = LayerCollection(background_color=self._background_color, colorizer=self._colorizer)
+        _, end_year = self.simulation_years
         for layer_pattern in patterns:
             for layer_path in glob(layer_pattern):
-                year = os.path.splitext(layer_path)[0][-4:]
-                layer = Layer(layer_path, year, units=units, interpretation=self._interpretation)
+                if Layer(layer_path).is_multiband:
+                    start_year = end_year - Layer(layer_path).n_bands + 1
+                    layer = Layer(layer_path, simulation_start_year=start_year, units=units,
+                                  interpretation=self._interpretation)
+                else:
+                    year = Path(layer_path).stem.rsplit("_", 1)[1]
+                    layer = Layer(layer_path, year, units=units, interpretation=self._interpretation)
+
                 layers.append(layer)
 
         if layers.empty:

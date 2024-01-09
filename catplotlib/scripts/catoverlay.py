@@ -35,7 +35,7 @@ def cli():
         level=logging.INFO, stream=sys.stdout,
         format="%(asctime)s %(message)s", datefmt="%m/%d %H:%M:%S")
 
-    parser = ArgumentParser(description="Overlay layers and create a summary of area by attribute combinations")
+    parser = ArgumentParser(description="Overlay layers and create a summary of area by attribute combinations.")
     parser.add_argument("output_path", type=Path, help="Path to csv file to write results to")
     parser.add_argument("layers", type=Path, nargs="+", help="Paths to raster layers to overlay")
     parser.add_argument("--bounding_box", help="Optional bounding box to crop layers to")

@@ -1,3 +1,4 @@
+from io import UnsupportedOperation
 import json
 import logging
 import subprocess
@@ -7,10 +8,12 @@ from pathlib import Path
 from pandas import DataFrame
 from enum import Enum
 from string import ascii_uppercase
+from concurrent.futures import ThreadPoolExecutor
 from catplotlib.util import gdal
 from mojadata.util.gdal_calc import Calc
 from mojadata.util.gdalhelper import GDALHelper
 from geopy.distance import distance
+from catplotlib.util.config import pool_workers
 from catplotlib.util.config import gdal_creation_options
 from catplotlib.util.config import gdal_memory_limit
 from catplotlib.util.tempfile import TempFileManager
@@ -32,20 +35,26 @@ class Layer:
     included are considered nodata.
 
     Arguments:
-    'path' -- path to the layer file
-    'year' -- the year the layer applies to
+    'path' -- path to the layer file.
+    'year' -- the year the layer applies to.
     'interpretation' -- optional attribute table for the raster; should be a
-        dictionary of pixel value to interpretation, i.e. {1: "Wildfire"}
-    'units' -- the units the layer's pixel values are in
+        dictionary of pixel value to interpretation, i.e. {1: "Wildfire"}.
+    'units' -- the units the layer's pixel values are in.
+    'simulation_start_year' -- if this is a multiband layer, the year that band 1
+        (timestep 1) corresponds to.
     '''
 
-    def __init__(self, path, year, interpretation=None, units=Units.TcPerHa, cache=None):
-        self._path = path
-        self._year = int(year)
+    def __init__(
+        self, path, year=None, interpretation=None, units=Units.TcPerHa, cache=None,
+        simulation_start_year=None
+    ):
+        self._path = str(Path(path).absolute())
+        self._year = int(year) if year is not None else "multiband" if simulation_start_year is not None else -1
         self._interpretation = interpretation
         self._units = units
         self._info = None
         self._cache = cache or get_cache()
+        self._simulation_start_year = simulation_start_year
         self._min = None
         self._max = None
 
@@ -82,6 +91,15 @@ class Layer:
         return self._info
     
     @property
+    def n_bands(self):
+        '''Gets the number of bands in this layer.'''
+        return len(self.info.get("bands", []))
+
+    @property
+    def is_multiband(self):
+        return self.n_bands > 1
+
+    @property
     def is_lat_lon(self):
         ds = gdal.Open(self.path)
         srs = ds.GetSpatialRef()
@@ -101,6 +119,9 @@ class Layer:
     @property
     def min_max(self):
         '''Gets this layer's minimum and maximum pixel values.'''
+        if self.is_multiband:
+            raise UnsupportedOperation("unsupported for multiband layers")
+
         if self._min is not None and self._max is not None:
             return self._min, self._max
 
@@ -161,6 +182,9 @@ class Layer:
 
     def get_histogram(self, min_value, max_value, buckets):
         '''Computes a histogram for this layer.'''
+        if self.is_multiband:
+            raise UnsupportedOperation("unsupported for multiband layers")
+
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
         
@@ -177,6 +201,9 @@ class Layer:
 
         Returns a copy of this layer in the new units as a new Layer object.
         '''
+        if self.is_multiband:
+            raise UnsupportedOperation("unsupported for multiband layers")
+
         if self._units == Units.Blank:
             return self
 
@@ -239,6 +266,9 @@ class Layer:
 
         Returns the sum or the average per-hectare value of the non-nodata pixels.
         '''
+        if self.is_multiband:
+            raise UnsupportedOperation("unsupported for multiband layers")
+
         gdal.SetCacheMax(gdal_memory_limit)
         current_per_ha, current_units_tc, current_units_name = self._units.value
         new_per_ha, new_units_tc, new_units_name = units.value if units else self._units.value
@@ -284,6 +314,9 @@ class Layer:
         '''
         Returns a summary of this layer's area in hectares by unique pixel value.
         '''
+        if self.is_multiband:
+            raise UnsupportedOperation("unsupported for multiband layers")
+
         nodata_value = self.nodata_value
         pixel_areas = None
         for chunk in self.read():
@@ -308,6 +341,9 @@ class Layer:
         Yields each chunk of data from the raster as a flattened DataFrame joined to per-
         pixel area, columns: value (pixel value), interpretation (if applicable), area (hectares).
         '''
+        if self.is_multiband:
+            raise UnsupportedOperation("unsupported for multiband layers")
+
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
         one_hectare = 100 ** 2
@@ -423,6 +459,9 @@ class Layer:
         
         Returns a new reclassified Layer object.
         '''
+        if self.is_multiband:
+            raise UnsupportedOperation("unsupported for multiband layers")
+
         orig_ndv = self.nodata_value
         if ((self.interpretation and self.interpretation.items() <= new_interpretation.items())
             and nodata_value == orig_ndv
@@ -497,7 +536,8 @@ class Layer:
         gdal.Warp(output_path, self._path, dstSRS=projection, creationOptions=gdal_creation_options)
 
         reprojected_layer = Layer(output_path, self._year, self._interpretation,
-                                  self._units, cache=self._cache)
+                                  self._units, cache=self._cache,
+                                  simulation_start_year=self._simulation_start_year)
 
         return reprojected_layer
 
@@ -509,6 +549,9 @@ class Layer:
         'layers' -- one or more other layers to blend paired with the blend mode, i.e.
             some_layer.blend(layer_a, BlendMode.Add, layer_b, BlendMode.Subtract)
         '''
+        if self.is_multiband:
+            raise UnsupportedOperation("unsupported for multiband layers")
+
         nodata_value = self.nodata_value
         blend_layers = {
             ascii_uppercase[i]: (layer.convert_units(self._units), blend_mode)
@@ -554,6 +597,9 @@ class Layer:
         
         Returns this layer as a colorized Frame object.
         '''
+        if self.is_multiband:
+            raise UnsupportedOperation("unsupported for multiband layers")
+
         with open(TempFileManager.mktmp(suffix=".txt"), "w") as color_table:
             color_table_path = color_table.name
             color_table.write(f"nv 255,255,255,{0 if transparent else 255}\n")
@@ -613,12 +659,19 @@ class Layer:
         
         Returns the path to the blank copy.
         '''
+        gdal.SetCacheMax(gdal_memory_limit)
+
         if not output_path:
             output_path = TempFileManager.mktmp(suffix=".tif")
         
-        gdal.SetCacheMax(gdal_memory_limit)
+        source_path = self._path
+        if self.is_multiband:
+            source_path = TempFileManager.mktmp(suffix=".tif")
+            gdal.Translate(source_path, self._path, bandList=[1],
+                           creationOptions=gdal_creation_options)
+
         driver = gdal.GetDriverByName("GTiff")
-        original_raster = gdal.Open(self._path)
+        original_raster = gdal.Open(source_path)
         new_raster = driver.CreateCopy(output_path, original_raster, strict=0,
                                        options=gdal_creation_options)
 
@@ -629,6 +682,50 @@ class Layer:
         band.WriteArray(np.full((band.YSize, band.XSize), nodata_value))
 
         return output_path
+
+    def unpack(self, output_path=None):
+        '''
+        If this is a multiband layer, unpacks this layer into separate single-band
+        layers by year (or timestep, if start_year was not specified in the constructor).
+        
+        Arguments:
+        'output_path' -- path to store the unpacked layers in, or omit to create
+            them in a temporary directory that will be cleaned up on exit.
+        
+        Returns a list of single-band layers by year or timestep.
+        '''
+        if not self.is_multiband:
+            return [self]
+
+        if output_path:
+            Path(output_path).mkdir(parents=True, exist_ok=True)
+        
+        with ThreadPoolExecutor(pool_workers) as pool:
+            tasks = []
+            for band in range(1, self.n_bands + 1):
+                tasks.append(pool.submit(self._extract_band, band, output_path))
+            
+            unpacked_layers = [task.result() for task in tasks]
+            
+        return unpacked_layers
+        
+    def _extract_band(self, band, output_path=None):
+        year = (self._simulation_start_year + band - 1) if self._simulation_start_year else band
+
+        original_path = Path(self._path)
+        if output_path:
+            band_output_path = str(Path(output_path).joinpath(
+                f"{original_path.stem}_{year}{original_path.suffix}"))
+        else:
+            band_output_path = TempFileManager.mktmp(suffix=original_path.suffix)
+            
+        gdal.SetCacheMax(gdal_memory_limit)
+        gdal.Translate(band_output_path, self._path, bandList=[band],
+                       creationOptions=gdal_creation_options)
+        
+        extracted_layer = Layer(band_output_path, year, self.interpretation, self.units, self._cache)
+        
+        return extracted_layer
 
     def _chunk(self, chunk_size=5000):
         '''Chunks this layer up for reading or writing.'''

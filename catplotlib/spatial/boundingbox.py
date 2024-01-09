@@ -117,9 +117,15 @@ class BoundingBox(Layer):
             self._init()
 
     def _init(self):
+        source_path = self._path
+        if self.is_multiband:
+            source_path = TempFileManager.mktmp(suffix=".tif")
+            gdal.Translate(source_path, self._path, bandList=[1],
+                           creationOptions=gdal_creation_options)
+
         bbox_path = TempFileManager.mktmp(no_manual_cleanup=True, suffix=".tif")
         gdal.SetCacheMax(gdal_memory_limit)
-        gdal.Warp(bbox_path, self._path,
+        gdal.Warp(bbox_path, source_path,
                   dstSRS=self._projection or self._get_srs(),
                   creationOptions=gdal_creation_options)
 

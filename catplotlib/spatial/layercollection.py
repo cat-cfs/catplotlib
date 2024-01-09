@@ -37,6 +37,7 @@ class LayerCollection:
         self._layers = layers or []
         self._background_color = background_color
         self._colorizer = colorizer or Colorizer()
+        self._ensure_unpacked()
 
     @property
     def empty(self):
@@ -47,10 +48,11 @@ class LayerCollection:
     def layers(self):
         '''Gets the layers in this collection.'''
         return list(self._layers)
-
+    
     def append(self, layer):
         '''Appends a layer to the collection.'''
         self._layers.append(layer)
+        self._ensure_unpacked()
 
     def merge(self, other):
         '''Merges another LayerCollection's layers into this one.'''
@@ -77,7 +79,7 @@ class LayerCollection:
         'units' -- the units to convert to.
         'area_only' -- only perform per-hectare <-> per-pixel conversion
         '''
-        logging.info("Converting layer collection units")        
+        logging.info("Converting layer collection units")
 
         return LayerCollection([layer.convert_units(units, area_only) for layer in self._layers],
                                self._background_color, self._colorizer)
@@ -239,3 +241,11 @@ class LayerCollection:
         merged_layer = Layer(output_path, layers[0].year, layers[0].interpretation, layers[0].units)
 
         return merged_layer
+
+    def _ensure_unpacked(self):
+        if any((l.is_multiband for l in self._layers)):
+            unpacked_layers = []
+            for layer in self._layers:
+                unpacked_layers.extend(layer.unpack())
+
+            self._layers = unpacked_layers

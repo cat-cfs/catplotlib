@@ -8,7 +8,6 @@ from argparse import ArgumentParser
 from catplotlib.util import localization
 from catplotlib.animator.util.disturbancelayerconfigurer import DisturbanceLayerConfigurer
 from catplotlib.provider.sqlitegcbmresultsprovider import SqliteGcbmResultsProvider
-from catplotlib.provider.spatialgcbmresultsprovider import SpatialGcbmResultsProvider
 from catplotlib.animator.indicator.indicator import Indicator
 from catplotlib.animator.indicator.spatialindicator import SpatialIndicator
 from catplotlib.spatial.layer import Layer
@@ -44,7 +43,7 @@ def find_units(units_str):
     except:
         return Units.Tc
 
-def load_indicators(simulations, indicator_config_path=None, use_db_results=True):
+def load_indicators(simulations, indicator_config_path=None, use_db_results=True, simulation_start_year=None):
     for config_path in (
         indicator_config_path,
         os.path.join(site.USER_BASE, "Tools", "catplotlib", "catanimate", "indicators.json"),
@@ -107,7 +106,8 @@ def load_indicators(simulations, indicator_config_path=None, use_db_results=True
                 (output_file_patterns, output_file_units),
                 indicator_config.get("title"),
                 graph_units, map_units,
-                colorizer=colorizer))
+                colorizer=colorizer,
+                simulation_start_year=simulation_start_year))
     
     return indicators
 
@@ -158,7 +158,9 @@ def create_bounding_box(simulations, bounding_box_path=None):
 
     return BoundingBox(bounding_box_path, find_best_projection(Layer(bounding_box_path, 0)))
 
-def load_disturbances(simulations, disturbance_colors_path=None, filter_disturbances=False):
+def load_disturbances(
+    simulations, disturbance_colors_path=None, filter_disturbances=False, simulation_start_year=None
+):
     disturbance_colorizer = None
     disturbance_filter = []
     disturbance_substitutions = {}
@@ -186,7 +188,8 @@ def load_disturbances(simulations, disturbance_colors_path=None, filter_disturba
         logging.info("Using output disturbances.")
         for sim in simulations:
             sim_disturbance_layers = disturbance_configurer.configure_output(
-                sim.spatial_output_path, sim.db_output_path, disturbance_filter, disturbance_substitutions)
+                sim.spatial_output_path, sim.db_output_path, disturbance_filter,
+                disturbance_substitutions, simulation_start_year=simulation_start_year)
 
             if disturbance_layers is None:
                 disturbance_layers = sim_disturbance_layers
@@ -213,7 +216,7 @@ def load_spatial_results_config(spatial_results_config_path):
     ]
 
 def cli():
-    parser = ArgumentParser(description="Create GCBM results animations")
+    parser = ArgumentParser(description="Create GCBM results animations.")
     parser.add_argument("output_path", type=os.path.abspath, help="Directory to write animations to")
     parser.add_argument("--spatial_results_config", type=os.path.abspath, help=(
         "Path to JSON file describing GCBM spatial output instead of using "
@@ -232,6 +235,7 @@ def cli():
     parser.add_argument("--start_year", type=int, help="Start year of the animation (detected if not provided)")
     parser.add_argument("--end_year", type=int, help="End year of the animation (detected if not provided)")
     parser.add_argument("--save_frames", action="store_true", default=False, help="Save animation frames")
+    parser.add_argument("--simulation_start_year", type=int, help="Start year of the simulation, if using multiband outputs")
     args = parser.parse_args()
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
@@ -253,8 +257,8 @@ def cli():
     bounding_box = create_bounding_box(simulations, args.bounding_box)
     bounding_box.init()
     
-    indicators = load_indicators(simulations, args.config, use_db_results)
-    disturbances = load_disturbances(simulations, args.disturbance_colors, args.filter_disturbances)
+    indicators = load_indicators(simulations, args.config, use_db_results, args.simulation_start_year)
+    disturbances = load_disturbances(simulations, args.disturbance_colors, args.filter_disturbances, args.simulation_start_year)
     animator = BoxLayoutAnimator(disturbances, indicators, args.output_path)
     animator.render(bounding_box, start_year=args.start_year, end_year=args.end_year,
                     save_frames=args.save_frames)
