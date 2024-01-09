@@ -43,7 +43,7 @@ class BasicResultsPlot(ResultsPlot):
                 
                 # Mark the current year.
                 plt.plot(year, indicator_data[indicator_data["year"] == year][value_key],
-                         marker="o", linestyle="--", color="b", markersize=15)
+                         marker="o", linestyle="--", color="b", markersize=15, zorder=3)
 
                 axis_min = min(values) - 0.1
                 if not np.isfinite(axis_min):
@@ -68,15 +68,15 @@ class BasicResultsPlot(ResultsPlot):
                 # Ensure integer tick labels.
                 ax.get_xaxis().set_major_locator(MaxNLocator(integer=True))
 
-                # Add a vertical line at the current year.
-                pos = year - 0.2 if i == len(years) - 1 else year + 0.2
-                plt.axvspan(year, pos, facecolor="g", alpha=0.5)
-
                 # Shade underneath the value series behind the current year.
                 shaded_years = np.array(years)
                 shaded_values = np.array(values).copy()
                 shaded_values[shaded_years > year] = np.nan
-                plt.fill_between(shaded_years, shaded_values, facecolor="gainsboro")
+                plt.fill_between(shaded_years, shaded_values, facecolor="gainsboro", zorder=1)
+
+                # Add a vertical line at the current year.
+                pos = year - 0.2 if i == len(years) - 1 else year + 0.2
+                plt.axvspan(year, pos, facecolor="g", alpha=0.5, zorder=2)
 
                 out_file = TempFileManager.mktmp(suffix=".png")
                 fig.savefig(out_file, bbox_inches="tight", dpi=300)
