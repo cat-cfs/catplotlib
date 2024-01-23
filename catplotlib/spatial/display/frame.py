@@ -119,7 +119,7 @@ class Frame:
                 new_height = int(new_width / aspect_ratio)
 
         out_path = TempFileManager.mktmp(suffix=".png")
-        Image.open(self.path).resize((new_width, new_height), Image.ANTIALIAS).save(out_path)
+        Image.open(self.path).resize((new_width, new_height)).save(out_path)
         new_scale = self._scale * (original_width / new_width) if self._scale else None
 
         return Frame(self._year, out_path, new_scale)

@@ -36,7 +36,7 @@ class Legend:
 
                     fig_legend.legend(lines,
                                       [entry["label"] for entry in legend.values()],
-                                      "upper left",
+                                      loc="upper left",
                                       title=legend_title,
                                       frameon=False,
                                       ncol=math.ceil(len(lines) / 10))

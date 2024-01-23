@@ -67,7 +67,7 @@ class BoxLayout:
 
         if title:
             title_font = self._find_optimal_font_size(title, canvas_width, int(height * 0.05))
-            title_w, title_h = title_font.getsize(title)
+            _, _, title_w, title_h = title_font.getbbox(title)
             true_title_height = int(title_h) + int(height * 0.01)
             
             title_x = width // 2 - title_w // 2
@@ -115,7 +115,7 @@ class BoxLayout:
         true_title_height = 0
         if box.title:
             base_width, base_height = base_image.size
-            title_width, title_height = font.getsize(box.title)
+            _, _, title_width, title_height = font.getbbox(box.title)
             true_title_height = int(title_height) + int(base_height * 0.01)
             title_x_pos = int(box.x_origin + box.width / 2 - title_width / 2)
             title_y_pos = int(box.y_origin + true_title_height // 2)
@@ -144,7 +144,7 @@ class BoxLayout:
         
         label = f"{int(scalebar_width_m / 1000)} km" if scalebar_width_m >= 1000 else f"{int(scalebar_width_m)} m"
         font = self._find_optimal_font_size(label, scalebar_width_px, scalebar_height * 0.75)
-        label_width, label_height = font.getsize(label)
+        _, _, label_width, label_height = font.getbbox(label)
         label_x = box.x_origin + box.width - label_width
         label_y = box.y_origin + box.height - label_height
 
@@ -171,10 +171,10 @@ class BoxLayout:
     def _find_optimal_font_size(self, text, max_width, max_height, font_face="arial.ttf"):
         font_size = 1
         font = ImageFont.truetype(font_face, font_size)
-        text_width, text_height = font.getsize(text)
+        _, _, text_width, text_height = font.getbbox(text)
         while text_width < max_width and text_height < max_height:
             font = ImageFont.truetype(font_face, font_size)
-            text_width, text_height = font.getsize(text)
+            _, _, text_width, text_height = font.getbbox(text)
             font_size += 1
 
         return font

@@ -75,7 +75,7 @@ class QuadrantLayout:
 
         if title:
             title_font = self._find_optimal_font_size(title, canvas_width, int(height * 0.05))
-            title_w, title_h = title_font.getsize(title)
+            _, _, title_w, title_h = title_font.getbbox(title)
             true_title_height = int(title_h) + int(height * 0.01)
             
             title_x = width // 2 - title_w // 2
@@ -127,7 +127,7 @@ class QuadrantLayout:
         true_title_height = 0
         if quadrant.title:
             base_width, base_height = base_image.size
-            title_width, title_height = font.getsize(quadrant.title)
+            _, _, title_width, title_height = font.getbbox(quadrant.title)
             true_title_height = int(title_height) + int(base_height * 0.01)
             title_x_pos = int(quadrant.x_origin + quadrant.width / 2 - title_width / 2)
             title_y_pos = int(quadrant.y_origin + true_title_height // 2)
@@ -157,7 +157,7 @@ class QuadrantLayout:
 
         label = locale.format_string("%.2f", scalebar_length_km) + " km"
         font = self._find_optimal_font_size(label, scalebar_length_px, scalebar_height * 0.75)
-        label_width, label_height = font.getsize(label)
+        _, _, label_width, label_height = font.getbbox(label)
         label_x = quadrant.x_origin + quadrant.width - label_width
         label_y = quadrant.y_origin + quadrant.height - label_height
 
@@ -173,10 +173,10 @@ class QuadrantLayout:
     def _find_optimal_font_size(self, text, max_width, max_height, font_face="arial.ttf"):
         font_size = 1
         font = ImageFont.truetype(font_face, font_size)
-        text_width, text_height = font.getsize(text)
+        _, _, text_width, text_height = font.getbbox(text)
         while text_width < max_width and text_height < max_height:
             font = ImageFont.truetype(font_face, font_size)
-            text_width, text_height = font.getsize(text)
+            _, _, text_width, text_height = font.getbbox(text)
             font_size += 1
 
         return font
