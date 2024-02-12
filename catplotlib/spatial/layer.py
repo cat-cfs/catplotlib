@@ -508,16 +508,23 @@ class Layer:
         '''
         gdal.SetCacheMax(gdal_memory_limit)
         logging.debug(f"Flattening {self._path}")
-        nodata_value = self.nodata_value
+
+        output_path = self.blank_copy()
+        output_raster = gdal.Open(output_path, gdal.GA_Update)
+        output_band = output_raster.GetRasterBand(1)
+
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
-        raster_data = band.ReadAsArray()
-        if self.has_interpretation:
-            raster_data[np.isin(raster_data, list(self._interpretation.keys()), invert=True)] = nodata_value
+        nodata_value = self.nodata_value
+
+        for chunk in self._chunk():
+            raster_data = band.ReadAsArray(*chunk)
+            if self.has_interpretation:
+                raster_data[np.isin(raster_data, list(self._interpretation.keys()), invert=True)] = nodata_value
         
-        raster_data[raster_data != nodata_value] = flattened_value
-        output_path = TempFileManager.mktmp(suffix=".tif")
-        self._save_as(raster_data, nodata_value, output_path)
+            raster_data[raster_data != nodata_value] = flattened_value
+            output_band.WriteArray(raster_data, *chunk[:2])
+    
         flattened_layer = Layer(output_path, self.year,
                                 units=self._units if preserve_units else Units.Blank,
                                 cache=self._cache)
@@ -679,7 +686,9 @@ class Layer:
         nodata_value = self.nodata_value
         band = new_raster.GetRasterBand(1)
         band.SetNoDataValue(nodata_value)
-        band.WriteArray(np.full((band.YSize, band.XSize), nodata_value))
+        for chunk in self._chunk():
+            x_px_start, y_px_start, x_size, y_size = chunk
+            band.WriteArray(np.full((y_size, x_size), nodata_value), x_px_start, y_px_start)
 
         return output_path
 
@@ -745,10 +754,3 @@ class Layer:
                 x_size = x_px_end - x_px_start + 1
 
                 yield (x_px_start, y_px_start, x_size, y_size)
-
-    def _save_as(self, data, nodata_value, output_path):
-        self.blank_copy(output_path)
-        new_raster = gdal.Open(output_path, gdal.GA_Update)
-        band = new_raster.GetRasterBand(1)
-        band.SetNoDataValue(nodata_value)
-        band.WriteArray(data)

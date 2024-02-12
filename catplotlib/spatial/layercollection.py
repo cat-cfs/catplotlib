@@ -126,6 +126,38 @@ class LayerCollection:
 
         return blended_collection
 
+    def flatten(self):
+        '''
+        Flattens this collection's layers into a single layer showing the non-
+        nodata pixels across the entire stack.
+        
+        Returns the flattened Layer.
+        '''
+        logging.info("Flattening layer collection...")
+
+        logging.info("  initial flatten")
+        flattened_layers = None
+        with Pool(pool_workers) as pool:
+            tasks = [pool.apply_async(layer.flatten) for layer in self.layers]
+            flattened_layers = [task.get() for task in tasks]
+            
+        logging.info("  blend")
+        blended_layer = flattened_layers.pop()
+        for blend_chunk in (
+            flattened_layers[i:i + 24]
+            for i in range(0, len(flattened_layers), 24)
+        ):
+            blend_args = []
+            for layer in blend_chunk:
+                blend_args.extend([layer, BlendMode.Add])
+                
+            blended_layer = blended_layer.blend(*blend_args)
+        
+        logging.info("  final flatten")
+        flattened_layer = blended_layer.flatten()
+        
+        return flattened_layer
+
     def normalize(self):
         '''
         For collections of interpreted layers where pixel values are associated

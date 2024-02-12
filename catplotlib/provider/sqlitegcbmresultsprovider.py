@@ -103,7 +103,7 @@ class SqliteGcbmResultsProvider(ResultsProvider):
     def find_indicator_table(self, indicator):
         conn = sqlite3.connect(self._paths[0])
         for table, value_col in SqliteGcbmResultsProvider.results_tables.items():
-            if conn.execute(f"SELECT 1 FROM {table} WHERE LOWER(indicator) = LOWER(?)", [indicator]).fetchone():
+            if conn.execute(f"SELECT 1 FROM {table} WHERE LOWER(indicator) = LOWER(?) LIMIT 1", [indicator]).fetchone():
                 return table, value_col
 
         return None, None

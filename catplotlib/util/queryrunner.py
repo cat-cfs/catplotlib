@@ -29,6 +29,41 @@ from textwrap import shorten
 
 warnings.filterwarnings("ignore", category=SAWarning)
 
+class GenericDb:
+
+    def __init__(self, conn, schema=None):
+        self.conn = conn
+        self.schema = schema
+
+    @contextmanager
+    def begin(self):
+        with self.conn.begin():
+            if self.schema:
+                self.conn.execute(text(f"SET SEARCH_PATH={self.schema}"))
+        
+            yield self.conn
+        
+
+class SqliteDb:
+
+    def __init__(self, conn):
+        self.conn = conn
+
+    @contextmanager
+    def begin(self):
+        with self.conn.begin():
+            for sql in (
+                "PRAGMA journal_mode=WAL",
+                "PRAGMA synchronous=normal",
+                "PRAGMA page_size=4096",
+                "PRAGMA shrink_memory",
+                f"PRAGMA cache_size={int(psutil.virtual_memory().available / 4096 * 0.75)}"
+            ):
+                self.conn.execute(text(sql))
+        
+            yield self.conn
+        
+
 class QueryRunner:
 
     type_map = {
@@ -70,27 +105,28 @@ class QueryRunner:
         all_original_tables = set()
         target_dbs = target_db if isinstance(target_db, list) else [target_db]
         attach_target_db = output_db is not None
-        with self.connect(working_db) as working_conn:
-            if attach_target_db:
-                for i, target in enumerate(target_dbs):
-                    with self.connect(target) as target_conn:
-                        target_tables = self.get_table_names(target_conn)
-                        all_original_tables.update(target_tables)
+        with self.connect(working_db) as working_db:
+            with working_db.begin() as working_conn:
+                if attach_target_db:
+                    for i, target in enumerate(target_dbs):
+                        with self.connect(target) as target_conn:
+                            target_tables = self.get_table_names(target_conn.conn)
+                            all_original_tables.update(target_tables)
 
-                    working_conn.execute(text(f"ATTACH '{target}' AS other_{i}"))
-                    for table in target_tables:
-                        working_conn.execute(text(
-                            f"CREATE TEMP VIEW IF NOT EXISTS {table} AS SELECT * FROM other_{i}.{table}"))
-            
-            sql_files = glob(rf"{sql_path}\*.sql") if os.path.isdir(sql_path) else [sql_path]    
-            for sql_file in sql_files:
-                self._run_queries(working_conn, sql_file)
+                        working_conn.execute(text(f"ATTACH '{target}' AS other_{i}"))
+                        for table in target_tables:
+                            working_conn.execute(text(
+                                f"CREATE TEMP VIEW IF NOT EXISTS {table} AS SELECT * FROM other_{i}.{table}"))
+                    
+                sql_files = glob(rf"{sql_path}\*.sql") if os.path.isdir(sql_path) else [sql_path]    
+                for sql_file in sql_files:
+                    self._run_queries(working_conn, sql_file)
 
-            if new_table_append:
-                with self.connect(output_db) as output_conn:
-                    new_tables = self.get_table_names(working_conn) - all_original_tables
-                    self.copy_tables(working_conn, output_conn, new_tables,
-                                     new_table_append, new_table_append)
+                if new_table_append:
+                    with self.connect(output_db) as output_conn:
+                        new_tables = self.get_table_names(working_conn) - all_original_tables
+                        self.copy_tables(working_conn, output_conn, new_tables,
+                                         new_table_append, new_table_append)
 
     def merge_databases(self, databases, output_path, source_col_name=None, *tables):
         '''
@@ -107,26 +143,29 @@ class QueryRunner:
         if os.path.exists(output_path):
             os.remove(output_path)
         
-        with self.connect(output_path) as output_conn:
-            for label, input_db_path in databases.items():
-                with self.connect(input_db_path) as input_conn:
-                    if not tables:
-                        tables = self.get_table_names(input_conn)
+        with self.connect(output_path) as output_db:
+            for i, (label, input_db_path) in enumerate(databases.items(), 1):
+                with self.connect(input_db_path) as input_db:
+                    with input_db.begin() as input_conn:
+                        if not tables:
+                            tables = self.get_table_names(input_conn)
 
-                    self.copy_tables(
-                        input_conn, output_conn, tables, True,
-                        {source_col_name: label} if source_col_name else None)
+                        print(f"Merging {label} ({i}/{len(databases)})")
+                        self.copy_tables(
+                            input_conn, output_db, tables, True,
+                            {source_col_name: label} if source_col_name else None)
 
-    def copy_tables(self, from_conn, to_conn, tables, append=False, include_source_column=None):
+    def copy_tables(self, from_conn, to_db, tables, append=False, include_source_column=None):
         print(f"Copying tables: {', '.join(tables)}")
         if not isinstance(tables, dict):
             tables = dict(zip(tables, tables))
 
         md = MetaData()
         md.reflect(bind=from_conn, only=lambda table_name, _: table_name in tables.keys())
-                
-        original_md = MetaData()
-        original_md.reflect(to_conn)
+        
+        with to_db.begin() as to_conn:
+            original_md = MetaData()
+            original_md.reflect(to_conn)
         
         output_md = MetaData()
         for fqn, table in md.tables.items():
@@ -153,28 +192,30 @@ class QueryRunner:
                 if source_col not in [col.name for col in output_table.columns]:
                     output_table.append_column(Column(source_col, sql.Text))
 
-            if not append:
-                output_table.drop(to_conn, checkfirst=True)
+            with to_db.begin() as to_conn:
+                if not append:
+                    output_table.drop(to_conn, checkfirst=True)
 
-            # Note: for MS Access, requires sqlalchemy-access >= 2.0.2 for YESNO fields.
-            output_table.indexes = set()
-            output_table.create(to_conn, checkfirst=True)
+                # Note: for MS Access, requires sqlalchemy-access >= 2.0.2 for YESNO fields.
+                output_table.indexes = set()
+                output_table.create(to_conn, checkfirst=True)
 
-            # Add any new columns to the existing table, if applicable.
-            if new_table_name in original_md:
-                original_table_columns = [c.name for c in original_md.tables[new_table_name].columns]
-                for col in table.columns:
-                    if col.name not in original_table_columns:
-                        to_conn.execute(f"ALTER TABLE {new_table_name} ADD COLUMN {col.name} {col.type}")
+                # Add any new columns to the existing table, if applicable.
+                if new_table_name in original_md:
+                    original_table_columns = [c.name for c in original_md.tables[new_table_name].columns]
+                    for col in table.columns:
+                        if col.name not in original_table_columns:
+                            to_conn.execute(f"ALTER TABLE {new_table_name} ADD COLUMN {col.name} {col.type}")
             
             origin_data = {source_col: source_name} if include_source_column else None
-            self._batch_insert(to_conn, output_table, from_conn.execute(select(table)),
+            self._batch_insert(to_db, output_table, from_conn.execute(select(table)),
                                lambda row: {k: v for k, v in row._mapping.items()}, origin_data)
 
     def import_tables(self, db_path, source_db, tables, append=False, include_source_column=None):
-        with self.connect(source_db) as working_conn, \
-        self.connect(db_path) as output_conn:
-            self.copy_tables(working_conn, output_conn, tables, append, include_source_column)
+        with self.connect(source_db) as working_db, \
+        self.connect(db_path) as output_db:
+            with working_db.begin() as working_conn:
+                self.copy_tables(working_conn, output_db, tables, append, include_source_column)
 
     def import_xls(self, db_path, xls_path, table_name=None, append=False, cell_range=None, **kwargs):
         table_name = table_name or kwargs.get("sheet_name", "xls_import")
@@ -194,36 +235,37 @@ class QueryRunner:
             
         self._import_df(db_path, df, table_name, append)
 
-    def import_sql(self, db_path, source_db, sql_path, append=False, include_source_column=None, table=None):
-        with self.connect(source_db) as source_conn:
-            sql_files = glob(rf"{sql_path}\*.sql") if os.path.isdir(sql_path) else [sql_path]
-            for sql_file in sql_files:
-                for i, sql in enumerate(self._load_sql(sql_file)):
-                    table_name = table or os.path.splitext(os.path.basename(sql_file))[0]
-                    if i > 0:
-                        table_name = f"{table_name}_{i}"
+    def import_sql(self, db_path, source_db, sql_path, append=False, include_source_column=None):
+        with self.connect(source_db) as source_db:
+            with source_db.begin() as source_conn:
+                sql_files = glob(rf"{sql_path}\*.sql") if os.path.isdir(sql_path) else [sql_path]
+                for sql_file in sql_files:
+                    for i, sql in enumerate(self._load_sql(sql_file)):
+                        table_name = table or os.path.splitext(os.path.basename(sql_file))[0]
+                        if i > 0:
+                            table_name = f"{table_name}_{i}"
 
-                    query = text(sql)
-                    query_params = query.compile().bind_names.values()
-                    query = query.bindparams(*(
-                        bindparam(param_name, required=False,
-                                  expanding=True if isinstance(self.config[param_name], list)
-                                            else False)
-                        for param_name in query_params
-                    ))
-
-                    results = source_conn.execute(query.bindparams(**{
-                        k: v for k, v in self.config.items() if k in query_params
-                    }))
-                    
-                    df = pd.DataFrame(results.fetchall(), columns=results.keys())
-                    if include_source_column:
-                        source_col, source_name = \
-                            next((k, v) for k, v in include_source_column.items())
+                        query = text(sql)
+                        query_params = query.compile().bind_names.values()
+                        query = query.bindparams(*(
+                            bindparam(param_name, required=False,
+                                      expanding=True if isinstance(self.config[param_name], list)
+                                                else False)
+                            for param_name in query_params
+                        ))
                         
-                        df[source_col] = source_name
+                        results = source_conn.execute(query.bindparams(**{
+                            k: v for k, v in self.config.items() if k in query_params
+                        }))
                         
-                    self._import_df(db_path, df, table_name, append)
+                        df = pd.DataFrame(results.fetchall(), columns=results.keys())
+                        if include_source_column:
+                            source_col, source_name = \
+                                next((k, v) for k, v in include_source_column.items())
+                            
+                            df[source_col] = source_name
+                            
+                        self._import_df(db_path, df, table_name, append)
 
     @contextmanager
     def connect(self, db_path):
@@ -253,20 +295,10 @@ class QueryRunner:
         engine = create_engine(connection_url, future=True)
         with engine.connect() as conn:
             try:
-                with conn.begin():
-                    if "sqlite" in connection_url:
-                        for sql in (
-                            "PRAGMA journal_mode=WAL",
-                            "PRAGMA synchronous=normal",
-                            "PRAGMA page_size=4096",
-                            "PRAGMA temp_store=2",
-                            f"PRAGMA cache_size={int(psutil.virtual_memory().available / 4096 * 0.75)}"
-                        ):
-                            conn.execute(text(sql))
-                    elif schema:
-                        conn.execute(text(f"SET SEARCH_PATH={schema}"))
-                
-                    yield conn
+                if "sqlite" in connection_url:
+                    yield SqliteDb(conn)
+                else:
+                    yield GenericDb(conn, schema)
                 
                 if "sqlite" in connection_url:
                     conn.execute(text("PRAGMA analysis_limit=1000"))
@@ -308,7 +340,7 @@ class QueryRunner:
         catalog = win32com.client.Dispatch("ADOX.Catalog")
         catalog.Create(dsn)
         
-    def _batch_insert(self, conn, table, data, row_extractor, extra_row_data=None):
+    def _batch_insert(self, db, table, data, row_extractor, extra_row_data=None):
         batch = []
         for i, row in enumerate(data, 1):
             row_data = row_extractor(row)
@@ -317,13 +349,15 @@ class QueryRunner:
                 batch.append(row_data)
                 
             if i % 10000 == 0:
-                conn.execute(insert(table), batch)
-                print(f"    {i}...")
-                batch = []
+                with db.begin() as conn:
+                    conn.execute(insert(table), batch)
+                    print(f"    {i}...")
+                    batch = []
         
         if batch:
             print(f"    {i}")
-            conn.execute(insert(table), batch)
+            with db.begin() as conn:
+                conn.execute(insert(table), batch)
 
     def _replace_df_cols(self, df, new_cols):
         if isinstance(new_cols, dict):
@@ -353,15 +387,17 @@ class QueryRunner:
 
     def _import_df(self, db_path, df, table_name, append=False):
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        with self.connect(db_path) as conn:
-            md = MetaData()
-            table = self._df_to_table(md, df, table_name)
-            if not append:
-                table.drop(conn, checkfirst=True)
+        with self.connect(db_path) as db:
+            with db.begin() as conn:
+                md = MetaData()
+                table = self._df_to_table(md, df, table_name)
+                if not append:
+                    table.drop(conn, checkfirst=True)
 
-            print(f"Importing data into {table_name}")
-            table.create(conn, checkfirst=True)
-            self._batch_insert(conn, table, df.replace({np.nan: None}).values,
+                print(f"Importing data into {table_name}")
+                table.create(conn, checkfirst=True)
+
+            self._batch_insert(db, table, df.replace({np.nan: None}).values,
                                lambda row: dict(zip(df.columns, row)))
 
     def _load_sql(self, path, dialect=None):
