@@ -148,10 +148,13 @@ class Layer:
         dt = str(self.data_type).lower()
         value = self.info["bands"][0].get("noDataValue")
         if value is None or str(value).lower() == "nan":
-            value = GDALHelper.float32_range[0] if (
-                dt == "float32" or dt == "float" or dt == str(gdal.GDT_Float32)
-                or dt == "float64" or dt == str(gdal.GDT_Float64)
-            ) else GDALHelper.int32_range[0]
+            value = (
+                GDALHelper.float32_range[0] if (
+                    dt == "float32" or dt == "float" or dt == str(gdal.GDT_Float32)
+                    or dt == "float64" or dt == str(gdal.GDT_Float64))
+                else GDALHelper.byte_range[0] if dt == "byte"
+                else GDALHelper.int32_range[0]
+            )
 
         if (dt == "float32" or dt == "float" or dt == str(gdal.GDT_Float32)
             or dt == "float64" or dt == str(gdal.GDT_Float64)
