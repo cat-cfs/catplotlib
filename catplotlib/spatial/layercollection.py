@@ -135,28 +135,18 @@ class LayerCollection:
         '''
         logging.info("Flattening layer collection...")
 
-        logging.info("  initial flatten")
+        # Flatten the layers individually first in case they have different
+        # attribute tables, especially with filtering applied.
+        logging.info("  flatten")
         flattened_layers = None
         with Pool(pool_workers) as pool:
             tasks = [pool.apply_async(layer.flatten) for layer in self.layers]
             flattened_layers = [task.get() for task in tasks]
             
-        logging.info("  blend")
-        blended_layer = flattened_layers.pop()
-        for blend_chunk in (
-            flattened_layers[i:i + 24]
-            for i in range(0, len(flattened_layers), 24)
-        ):
-            blend_args = []
-            for layer in blend_chunk:
-                blend_args.extend([layer, BlendMode.Add])
-                
-            blended_layer = blended_layer.blend(*blend_args)
+        logging.info("  merge")
+        merged_flattened_layer = self._merge_layers(flattened_layers)
         
-        logging.info("  final flatten")
-        flattened_layer = blended_layer.flatten()
-        
-        return flattened_layer
+        return merged_flattened_layer
 
     def normalize(self):
         '''

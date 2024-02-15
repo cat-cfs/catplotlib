@@ -1,7 +1,9 @@
 import numpy as np
+from multiprocessing import Pool
 from catplotlib.util import gdal
 from mojadata.util.gdal_calc import Calc
 from catplotlib.spatial.layer import Layer
+from catplotlib.spatial.layercollection import LayerCollection
 from catplotlib.util.config import gdal_creation_options
 from catplotlib.util.config import gdal_memory_limit
 from catplotlib.util.tempfile import TempFileManager
@@ -70,16 +72,42 @@ class BoundingBox(Layer):
 
         return self._min_geographic_bounds
 
+    def init(self):
+        '''
+        Explicitly initializes the bounding box instead of waiting for it to happen
+        as needed - can be useful for avoiding redundant initialization steps in
+        multiprocessing.
+        '''
+        if not self._initialized:
+            self._init()
+
     def crop(self, layer, crop_to_data=True):
         '''
-        Crops a Layer to the minimum spatial extent and nodata pixels of this
-        bounding box.
+        Crops a Layer or LayerCollection to the minimum spatial extent and nodata
+        pixels of this bounding box.
 
         Arguments:
         'layer' -- the layer to crop.
 
         Returns a new cropped Layer object.
         '''
+        if isinstance(layer, LayerCollection):
+            with Pool() as pool:
+                tasks = []
+                for original_layer in layer.layers:
+                    tasks.append(pool.apply_async(
+                        self._crop,
+                        (original_layer, crop_to_data)
+                    ))
+        
+                pool.close()
+                pool.join()
+        
+                return LayerCollection([result.get() for result in tasks])
+        else:
+            return self._crop(layer, crop_to_data)
+
+    def _crop(self, layer, crop_to_data=True):
         if not self._initialized:
             self._init()
 
@@ -106,15 +134,6 @@ class BoundingBox(Layer):
         cropped_layer = Layer(output_path, layer.year, layer.interpretation, layer.units, self._cache)
 
         return cropped_layer
-
-    def init(self):
-        '''
-        Explicitly initializes the bounding box instead of waiting for it to happen
-        as needed - can be useful for avoiding redundant initialization steps in
-        multiprocessing.
-        '''
-        if not self._initialized:
-            self._init()
 
     def _init(self):
         source_path = self._path

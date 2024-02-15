@@ -106,6 +106,8 @@ class DisturbanceLayerConfigurer:
             raise IOError(f"Compiled results database not specified or not found.")
 
         conn = sqlite3.connect(db_results)
+
+        dist_type_substitutions = dist_type_substitutions or {}
         layer_attribute_table = {
             int(k): dist_type_substitutions.get(v, v) for (k, v) in conn.execute(
                 """
