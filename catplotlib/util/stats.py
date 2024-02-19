@@ -88,7 +88,7 @@ def calculate_stack_stat(
             logging.info(f"    layer {j} / {n_layers}")
             ds = gdal.Open(str(layer_path))
             band = ds.GetRasterBand(1)
-            chunk_data = band.ReadAsArray(*chunk)
+            chunk_data = band.ReadAsArray(*chunk).astype(float)
             chunk_data[chunk_data == band.GetNoDataValue()] = np.nan
             all_chunk_data.append(chunk_data)
             
@@ -98,9 +98,9 @@ def calculate_stack_stat(
         stacked_data = np.stack(all_chunk_data)
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            percentile_data = numpy_fn(stacked_data, *numpy_args, **numpy_kwargs)
+            calculated_data = numpy_fn(stacked_data, *numpy_args, **numpy_kwargs)
 
         nodata_mask = np.all(np.stack([np.isnan(chunk_data) for chunk_data in all_chunk_data]), axis=0)
-        percentile_data[nodata_mask] = ndv
+        calculated_data[nodata_mask] = ndv
 
-        out_band.WriteArray(percentile_data, chunk[0], chunk[1])
+        out_band.WriteArray(calculated_data, chunk[0], chunk[1])
