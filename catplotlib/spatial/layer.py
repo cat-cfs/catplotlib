@@ -355,9 +355,14 @@ class Layer:
         for chunk in self._chunk(chunk_size):
             raster_data = DataFrame(band.ReadAsArray(*chunk).flatten(), columns=["value"])
             if self.has_interpretation:
+                columns = (
+                    None if isinstance(next(iter(self._interpretation.values())), dict)
+                    else ["interpretation"]
+                )
+                
                 raster_data = raster_data.join(DataFrame(
                     self._interpretation.values(), self._interpretation.keys(),
-                    columns=["interpretation"]
+                    columns=columns
                 ), on="value").fillna("")
 
             if not self.is_lat_lon:

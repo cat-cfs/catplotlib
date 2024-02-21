@@ -47,7 +47,8 @@ def overlay(layers, chunk_size=5000):
                 all_chunk_data = chunk_data
             else:
                 all_chunk_data = all_chunk_data.join(
-                    chunk_data[[c for c in chunk_data.columns if c != "area"]]
+                    chunk_data[[c for c in chunk_data.columns if c != "area"]],
+                    rsuffix=f"_{layer_name}"
                 )
     
         if all_chunk_data is None:
