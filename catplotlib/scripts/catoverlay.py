@@ -15,14 +15,19 @@ from catplotlib.util.tempfile import TempFileManager
 
 def process_overlay_by(layers):
     overlay_result = overlay(layers)
-    keep_columns = []
-    for layer in layers.values():
+    keep_columns = ["area", *(l for l in layers if l in overlay_result)]
+    for layer_name, layer in layers.items():
         if layer.has_interpretation:
-            keep_columns.extend([
-                c for c in overlay_result.columns if "_px" not in c and c not in keep_columns
-            ])
+            for _, attributes in layer.interpretation.items():
+                keep_columns.extend([
+                    c for c in attributes
+                    if c in overlay_result and c not in keep_columns
+                ])
         else:
-            keep_columns.extend([c for c in overlay_result.columns if c not in keep_columns])
+            keep_columns.extend([
+                c for c in overlay_result
+                if layer_name in c and c not in keep_columns
+            ])
 
     overlay_result = overlay_result[keep_columns].groupby([
         c for c in keep_columns if "area" not in c
