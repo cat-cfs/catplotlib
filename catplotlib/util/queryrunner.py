@@ -241,7 +241,7 @@ class QueryRunner:
                 sql_files = glob(rf"{sql_path}\*.sql") if os.path.isdir(sql_path) else [sql_path]
                 for sql_file in sql_files:
                     for i, sql in enumerate(self._load_sql(sql_file)):
-                        table_name = table or os.path.splitext(os.path.basename(sql_file))[0]
+                        table_name = os.path.splitext(os.path.basename(sql_file))[0]
                         if i > 0:
                             table_name = f"{table_name}_{i}"
 
