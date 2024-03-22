@@ -34,6 +34,8 @@ class SpatialIndicator(ResultsProvider):
         is used.
     'title' -- the indicator title for presentation - uses the indicator name if
         not provided.
+    'short_title' -- the short indicator title for presentation - uses the
+        indicator name if not provided.
     'graph_units' -- a Units enum value for the graph units - result values will
         be converted to these units. If set to Units.Blank, a graph will not be
         rendered.
@@ -49,10 +51,11 @@ class SpatialIndicator(ResultsProvider):
 
     def __init__(self, indicator, layer_pattern, title=None, graph_units=Units.Tc,
                  map_units=Units.TcPerHa, background_color=(255, 255, 255),
-                 colorizer=None, simulation_start_year=None):
+                 colorizer=None, simulation_start_year=None, short_title=None):
         self._indicator = indicator
         self._layer_pattern = layer_pattern
         self._title = title or indicator
+        self._short_title = short_title or indicator
         self._graph_units = graph_units or Units.Tc
         self._map_units = map_units or Units.TcPerHa
         self._background_color = background_color
@@ -71,6 +74,11 @@ class SpatialIndicator(ResultsProvider):
     def indicator(self):
         '''Gets the short title for the indicator.'''
         return self._indicator
+
+    @property
+    def short_title(self):
+        '''Gets the short indicator title.'''
+        return self._short_title
 
     @property
     def map_units(self):
@@ -141,7 +149,7 @@ class SpatialIndicator(ResultsProvider):
         if self._graph_units == Units.Blank:
             return None
 
-        plot = BasicResultsPlot(self._indicator, self, self._graph_units)
+        plot = BasicResultsPlot(self._short_title, self, self._indicator, self._graph_units)
         logging.info(f"{self.title}: rendering graph frames")
 
         return plot.render(start_year=start_year, end_year=end_year, **kwargs)

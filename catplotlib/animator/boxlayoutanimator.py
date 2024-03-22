@@ -64,7 +64,7 @@ class BoxLayoutAnimator:
 
             units = _(indicator.map_units.value[2])
             units_label = f" ({units})" if units else ""
-            indicator_legend_title = f"{indicator.indicator}{units_label}"
+            indicator_legend_title = f"{indicator.short_title}{units_label}"
             indicator_frames, indicator_legend = indicator.render_map_frames(
                 bounding_box, start_year, end_year)
 
@@ -96,7 +96,7 @@ class BoxLayoutAnimator:
                 title = f"{indicator.title}, " + _("Year:") + f" {year}"
                 animation_frames.append(layout.render([
                     [(disturbance_frame, _("Disturbances")), (indicator_frame, indicator_legend_title)],
-                    [(left_legend_frame, None), (graph_frame, indicator.indicator), (right_legend_frame, None)]
+                    [(left_legend_frame, None), (graph_frame, indicator.short_title), (right_legend_frame, None)]
                 ], title=title, dimensions=(3840, 2160)))
 
             logging.info(f"{indicator.title}: creating final output")

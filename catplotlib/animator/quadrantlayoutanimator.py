@@ -64,7 +64,7 @@ class QuadrantLayoutAnimator:
 
             units = _(indicator.map_units.value[2])
             units_label = f" ({units})" if units else ""
-            indicator_legend_title = f"{indicator.indicator}{units_label}"
+            indicator_legend_title = f"{indicator.short_title}{units_label}"
             indicator_frames, indicator_legend = indicator.render_map_frames(
                 bounding_box, start_year, end_year)
 
@@ -95,7 +95,7 @@ class QuadrantLayoutAnimator:
                 title = f"{indicator.title}, " + _("Year:") + f" {year}"
                 animation_frames.append(layout.render(
                     disturbance_frame, indicator_frame, graph_frame, legend_frame,
-                    _("Disturbances"), indicator_legend_title, indicator.indicator,
+                    _("Disturbances"), indicator_legend_title, indicator.short_title,
                     title=title, dimensions=(3840, 2160)))
 
             self._create_animation(indicator.title, animation_frames, fps)

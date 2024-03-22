@@ -74,7 +74,7 @@ class CompositeIndicator(Indicator):
         Returns a list of Frames, one for each year of output.
         '''
         self._init(**kwargs)
-        plot = BasicResultsPlot(self._indicator, self._results_provider, self._graph_units)
+        plot = BasicResultsPlot(self._short_title, self._results_provider, self._indicator, self._graph_units)
         
         return plot.render(start_year=start_year, end_year=end_year, **kwargs)
 

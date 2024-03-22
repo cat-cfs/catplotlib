@@ -98,7 +98,8 @@ def load_indicators(simulations, indicator_config_path=None, use_db_results=True
                     indicator_config.get("title"),
                     graph_units, map_units,
                     colorizer=colorizer,
-                    interpretation=interpretation))
+                    interpretation=interpretation,
+                    short_title=indicator_config.get("short_title")))
         
         if not use_db_results or not has_db_results:
             indicators.append(SpatialIndicator(
@@ -107,7 +108,8 @@ def load_indicators(simulations, indicator_config_path=None, use_db_results=True
                 indicator_config.get("title"),
                 graph_units, map_units,
                 colorizer=colorizer,
-                simulation_start_year=simulation_start_year))
+                simulation_start_year=simulation_start_year,
+                short_title=indicator_config.get("short_title")))
     
     return indicators
 

@@ -12,9 +12,10 @@ from catplotlib.util.tempfile import TempFileManager
 
 class BasicResultsPlot(ResultsPlot):
 
-    def __init__(self, title, provider, units):
+    def __init__(self, title, provider, indicator, units):
         self._title = title
         self._provider = provider
+        self._indicator = indicator
         self._units = units
 
     def render(self, start_year=None, end_year=None, **kwargs):
@@ -26,8 +27,9 @@ class BasicResultsPlot(ResultsPlot):
 
         Returns a list of Frames, one for each year of output.
         '''
-        indicator = kwargs.pop("indicator", self._title)
-        indicator_data = self._provider.get_annual_result(indicator, start_year, end_year, self._units, **kwargs)
+        indicator_data = self._provider.get_annual_result(
+            self._indicator, start_year, end_year, self._units, **kwargs)
+        
         value_key = next((key for key in indicator_data.keys() if str(key).lower() != "year"))
         years = sorted(indicator_data.year.tolist())
         values = indicator_data[value_key]
