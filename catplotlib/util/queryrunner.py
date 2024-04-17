@@ -22,12 +22,74 @@ from sqlalchemy import Table
 from sqlalchemy import select
 from sqlalchemy import insert
 from sqlalchemy import inspect
+from sqlalchemy.schema import PrimaryKeyConstraint
 from sqlalchemy.types import NullType
 from sqlalchemy.exc import SAWarning
+from sqlalchemy_access.base import COUNTER
+from sqlalchemy_access.base import YESNO
+from sqlalchemy_access.base import TINYINT
+from sqlalchemy_access.base import LONGCHAR
+from sqlalchemy.ext.compiler import compiles
 from textwrap import indent
 from textwrap import shorten
 
 warnings.filterwarnings("ignore", category=SAWarning)
+
+@compiles(YESNO)
+def compile_boolean_types(element, compiler, **kw):
+    return "INTEGER"
+
+@compiles(COUNTER)
+@compiles(TINYINT)
+def compile_int_types(element, compiler, **kw):
+    return "INTEGER"
+
+@compiles(LONGCHAR)
+def compile_str_types(element, compiler, **kw):
+    return "VARCHAR"
+
+class AccessDb:
+
+    def __init__(self, conn, path):
+        self.conn = conn
+        self.path = path
+
+    @contextmanager
+    def begin(self):
+        with self.conn.begin():
+            yield self.conn
+    
+    def insert(self, table, batch):
+        import win32com.client
+        engine = win32com.client.Dispatch("DAO.DBEngine.120")
+        db = engine.OpenDatabase(self.path)
+        record_set = None
+        try:
+            record_set = db.OpenRecordset(table.name)
+            column_names = list(batch[0].keys())
+            fields = self._extract_fields(record_set, column_names)
+            for row in batch:
+                record_set.AddNew()
+                for i, value in enumerate(row.values()):
+                    if value is None or value == "":
+                        continue
+                
+                    fields[i].Value = value
+            
+                record_set.Update()
+        finally:
+            if record_set:
+                record_set.Close()
+            
+            db.Close()
+        
+    def _extract_fields(self, record_set, column_names):
+        fields = []
+        for name in column_names:
+            fields.append(record_set.Fields[name])
+        
+        return fields
+
 
 class GenericDb:
 
@@ -42,7 +104,11 @@ class GenericDb:
                 self.conn.execute(text(f"SET SEARCH_PATH={self.schema}"))
         
             yield self.conn
-        
+    
+    def insert(self, table, batch):
+        with self.begin() as conn:
+            conn.execute(insert(table), batch)
+
 
 class SqliteDb:
 
@@ -62,7 +128,11 @@ class SqliteDb:
                 self.conn.execute(text(sql))
         
             yield self.conn
-        
+            
+    def insert(self, table, batch):
+        with self.begin() as conn:
+            conn.execute(insert(table), batch)
+
 
 class QueryRunner:
 
@@ -135,7 +205,7 @@ class QueryRunner:
         for each row in the merged output.
 
         Parameters:
-          databases - a dictionary of database title to SQLite file path
+          databases - a dictionary of database title to database path
           output_path - the output database; will be deleted if it already exists
           tables - [optional] merge only the listed tables
         '''
@@ -155,7 +225,7 @@ class QueryRunner:
                             input_conn, output_db, tables, True,
                             {source_col_name: label} if source_col_name else None)
 
-    def copy_tables(self, from_conn, to_db, tables, append=False, include_source_column=None):
+    def copy_tables(self, from_conn, to_db, tables, append=False, include_source_column=None, constraints=False):
         print(f"Copying tables: {', '.join(tables)}")
         if not isinstance(tables, dict):
             tables = dict(zip(tables, tables))
@@ -196,8 +266,17 @@ class QueryRunner:
                 if not append:
                     output_table.drop(to_conn, checkfirst=True)
 
-                # Note: for MS Access, requires sqlalchemy-access >= 2.0.2 for YESNO fields.
-                output_table.indexes = set()
+                if not constraints:
+                    output_table.constraints = set()
+                    output_table.indexes = set()
+                    output_table.primary_key = PrimaryKeyConstraint()
+                    for column in output_table.columns:
+                        column.foreign_keys = set()
+                        column.constraints = set()
+                        column.unique = False
+                        column.primary_key = False
+                        column.nullable = True
+
                 output_table.create(to_conn, checkfirst=True)
 
                 # Add any new columns to the existing table, if applicable.
@@ -211,7 +290,7 @@ class QueryRunner:
             self._batch_insert(to_db, output_table, from_conn.execute(select(table)),
                                lambda row: {k: v for k, v in row._mapping.items()}, origin_data)
 
-    def import_tables(self, db_path, source_db, tables, append=False, include_source_column=None):
+    def import_tables(self, db_path, source_db, tables, append=False, include_source_column=None, constraints=False):
         with self.connect(source_db) as working_db, \
         self.connect(db_path) as output_db:
             with working_db.begin() as working_conn:
@@ -240,7 +319,7 @@ class QueryRunner:
             with source_db.begin() as source_conn:
                 sql_files = glob(rf"{sql_path}\*.sql") if os.path.isdir(sql_path) else [sql_path]
                 for sql_file in sql_files:
-                    for i, sql in enumerate(self._load_sql(sql_file)):
+                    for i, sql in enumerate(self._load_sql(sql_file, source_db.conn.engine.dialect.name)):
                         table_name = os.path.splitext(os.path.basename(sql_file))[0]
                         if i > 0:
                             table_name = f"{table_name}_{i}"
@@ -295,12 +374,14 @@ class QueryRunner:
         engine = create_engine(connection_url, future=True)
         with engine.connect() as conn:
             try:
-                if "sqlite" in connection_url:
+                if "sqlite://" in connection_url:
                     yield SqliteDb(conn)
+                elif "access" in connection_url:
+                    yield AccessDb(conn, db_path)
                 else:
                     yield GenericDb(conn, schema)
                 
-                if "sqlite" in connection_url:
+                if "sqlite://" in connection_url:
                     conn.execute(text("PRAGMA analysis_limit=1000"))
                     conn.execute(text("PRAGMA optimize"))
                 
@@ -349,15 +430,13 @@ class QueryRunner:
                 batch.append(row_data)
                 
             if i % 10000 == 0:
-                with db.begin() as conn:
-                    conn.execute(insert(table), batch)
-                    print(f"    {i}...")
-                    batch = []
+                print(f"    {i}...")
+                db.insert(table, batch)
+                batch = []
         
         if batch:
             print(f"    {i}")
-            with db.begin() as conn:
-                conn.execute(insert(table), batch)
+            db.insert(table, batch)
 
     def _replace_df_cols(self, df, new_cols):
         if isinstance(new_cols, dict):
@@ -408,34 +487,40 @@ class QueryRunner:
         queries = []
         for sql in open(path, "r").read().split(";"):
             if sql and not sql.isspace():
-                classifier_sql = {}
+                fmt_sql = {}
                 sql_params = {key for _, key, _, _ in Formatter().parse(sql) if key}
                 for param in sql_params:
-                    if "classifiers" not in param:
-                        continue
-                    
-                    # Query can contain format strings to be replaced by classifier names:
-                    # classifiers_select[_<table name>]
-                    # classifiers_join_<table1>_<table2>
-                    parts = param.split("_")
-                    if "select" in parts:
-                        table = parts[2] if len(parts) == 3 else None
-                        classifier_sql[param] = ", ".join(
-                            (f"{table}.{c}" for c in self.classifiers)
-                            if table else self.classifiers)
-                    elif "join" in parts:
-                        _, _, lhs_table, rhs_table = parts
-                        if dialect == "sqlite":
-                            classifier_sql[param] = " AND ".join((
-                                f"{lhs_table}.{c} IS {rhs_table}.{c}"
-                                for c in self.classifiers))
-                        else:
-                            classifier_sql[param] = " AND ".join((
-                                f"({lhs_table}.{c} = {rhs_table}.{c}"
-                                " OR ({lhs_table}.{c} IS NULL AND {rhs_table}.{c} IS NULL))"
-                                for c in self.classifiers))
+                    if param == "case_start":
+                        fmt_sql[param] = "IIF(" if dialect == "access" else "CASE WHEN"
+                    elif param == "case_then":
+                        fmt_sql[param] = "," if dialect == "access" else "THEN"
+                    elif param == "case_else":
+                        fmt_sql[param] = "," if dialect == "access" else "ELSE"
+                    elif param == "case_end":
+                        fmt_sql[param] = ")" if dialect == "access" else "END"
+                    elif "classifiers" in param:
+                        # Query can contain format strings to be replaced by classifier names:
+                        # classifiers_select[_<table name>]
+                        # classifiers_join_<table1>_<table2>
+                        parts = param.split("_")
+                        if "select" in parts:
+                            table = parts[2] if len(parts) == 3 else None
+                            fmt_sql[param] = ", ".join(
+                                (f"{table}.{c}" for c in self.classifiers)
+                                if table else self.classifiers)
+                        elif "join" in parts:
+                            _, _, lhs_table, rhs_table = parts
+                            if dialect == "sqlite":
+                                fmt_sql[param] = " AND ".join((
+                                    f"{lhs_table}.{c} IS {rhs_table}.{c}"
+                                    for c in self.classifiers))
+                            else:
+                                fmt_sql[param] = " AND ".join((
+                                    f"({lhs_table}.{c} = {rhs_table}.{c}"
+                                    " OR ({lhs_table}.{c} IS NULL AND {rhs_table}.{c} IS NULL))"
+                                    for c in self.classifiers))
                 
-                queries.append(partial(sql.format, **classifier_sql)(**self.config))
+                queries.append(partial(sql.format, **fmt_sql)(**self.config))
         
         return queries
         
