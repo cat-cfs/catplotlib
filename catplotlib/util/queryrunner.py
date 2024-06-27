@@ -119,8 +119,8 @@ class SqliteDb:
     def begin(self):
         with self.conn.begin():
             for sql in (
-                "PRAGMA journal_mode=WAL",
-                "PRAGMA synchronous=normal",
+                "PRAGMA journal_mode=off",
+                "PRAGMA synchronous=off",
                 "PRAGMA page_size=4096",
                 "PRAGMA shrink_memory",
                 f"PRAGMA cache_size={int(psutil.virtual_memory().available / 4096 * 0.75)}"

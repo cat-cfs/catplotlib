@@ -13,8 +13,8 @@ from catplotlib.util.overlay import overlay
 from catplotlib.util.layersummary import create_bounding_box
 from catplotlib.util.tempfile import TempFileManager
 
-def process_overlay_by(layers):
-    overlay_result = overlay(layers)
+def process_overlay_by(layers, raster_output_path=None):
+    overlay_result = overlay(layers, output_path=raster_output_path)
     keep_columns = ["area", *(l for l in layers if l in overlay_result)]
     for layer_name, layer in layers.items():
         if layer.has_interpretation:
@@ -79,7 +79,12 @@ def do_overlay(
             for layer_name, layer in layers.items():
                 overlay_layers = by_layers.copy()
                 overlay_layers[layer_name] = layer
-                tasks.append(pool.submit(process_overlay_by, overlay_layers))
+                raster_output_path = (
+                    Path(output_path).parent.joinpath(f"{layer_name}_overlay.tif")
+                    if output_path else None
+                )
+                
+                tasks.append(pool.submit(process_overlay_by, overlay_layers, raster_output_path))
         
             results = [task.result() for task in tasks]
     
@@ -90,7 +95,8 @@ def do_overlay(
                 c for c in result if "area" not in c
             ], dropna=False).sum().reset_index()
     else:
-        result = overlay(layers)
+        raster_output_path = Path(output_path).with_suffix(".tif") if output_path else None
+        result = overlay(layers, output_path=raster_output_path)
         
     if output_path:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -116,7 +122,8 @@ def cli():
         format="%(asctime)s %(message)s", datefmt="%m/%d %H:%M:%S")
 
     parser = ArgumentParser(description="Overlay layers and create a summary of area by attribute combinations.")
-    parser.add_argument("output_path", type=Path, help="Path to csv file to write results to")
+    parser.add_argument("output_path", type=Path, help="Path to csv file to write results to; a spatial layer will also be created "
+                                                        "where the pixel value is the overlay_id in the csv file")
     parser.add_argument("layers", nargs="+", help="Paths to raster layers to overlay")
     parser.add_argument("--by", type=Path, nargs="*",
                         help="Optional layers to overlay each of the layers in the 'layers' list by to form a "

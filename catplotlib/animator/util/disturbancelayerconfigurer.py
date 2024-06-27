@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import sqlite3
@@ -124,6 +125,7 @@ class DisturbanceLayerConfigurer:
             lambda fn: os.path.splitext(fn)[1] in (".tif", ".tiff"),
             glob(os.path.join(spatial_results, "current_disturbance*.ti*"))
         ):
+            logging.info(f"Processing {layer}.")
             if not Layer(layer).is_multiband:
                 year = int(os.path.splitext(os.path.basename(layer))[0].rsplit("_", 1)[1])
                 if not (

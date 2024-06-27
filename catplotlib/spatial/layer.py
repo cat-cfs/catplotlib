@@ -1,9 +1,11 @@
-from io import UnsupportedOperation
+import os
 import json
 import logging
 import subprocess
+import shutil
 import numpy as np
 import pandas as pd
+from io import UnsupportedOperation
 from pathlib import Path
 from pandas import DataFrame
 from enum import Enum
@@ -322,7 +324,7 @@ class Layer:
 
         nodata_value = self.nodata_value
         pixel_areas = None
-        for chunk in self.read():
+        for _, chunk in self.read():
             if pixel_areas is None or pixel_areas.empty:
                 pixel_areas = (
                     chunk[chunk["value"] != nodata_value]
@@ -349,11 +351,16 @@ class Layer:
 
         raster = gdal.Open(self._path)
         band = raster.GetRasterBand(1)
+        ndv = band.GetNoDataValue()
         one_hectare = 100 ** 2
         
         area_band = None
         for chunk in self._chunk(chunk_size):
-            raster_data = DataFrame(band.ReadAsArray(*chunk).flatten(), columns=["value"])
+            raster_data = DataFrame(
+                np.nan_to_num(band.ReadAsArray(*chunk).flatten(), nan=ndv, posinf=ndv, neginf=ndv),
+                columns=["value"]
+            )
+            
             if self.has_interpretation:
                 columns = (
                     None if isinstance(next(iter(self._interpretation.values())), dict)
@@ -378,7 +385,7 @@ class Layer:
                 area_data = DataFrame(area_band.ReadAsArray(*chunk).flatten(), columns=["area"])
                 raster_data = raster_data.join(area_data)
     
-            yield raster_data
+            yield chunk, raster_data
     
     def area_grid(self, chunk_size=5000):
         '''
@@ -663,7 +670,7 @@ class Layer:
 
         return Frame(self._year, rendered_layer_path, self.scale)
 
-    def blank_copy(self, output_path=None):
+    def blank_copy(self, output_path=None, data_type=None, nodata_value=None):
         '''
         Creates a blank (all nodata) copy of this layer with the same projection,
         resolution, and extent.
@@ -689,9 +696,17 @@ class Layer:
         original_raster = gdal.Open(source_path)
         new_raster = driver.CreateCopy(output_path, original_raster, strict=0,
                                        options=gdal_creation_options)
+        
+        if data_type is not None:
+            transform_path = TempFileManager.mktmp(suffix=".tif")
+            new_raster = None
+            gdal.Translate(transform_path, output_path, outputType=data_type, creationOptions=gdal_creation_options)
+            os.unlink(output_path)
+            shutil.copyfile(transform_path, output_path)
+            new_raster = gdal.Open(output_path, gdal.GA_Update)
 
         del original_raster
-        nodata_value = self.nodata_value
+        nodata_value = nodata_value if nodata_value is not None else self.nodata_value
         band = new_raster.GetRasterBand(1)
         band.SetNoDataValue(nodata_value)
         for chunk in self._chunk():
