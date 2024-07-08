@@ -338,7 +338,7 @@ class Layer:
         
         return pixel_areas
     
-    def read(self, chunk_size=5000):
+    def read(self, chunk_size=5000, include_area=True):
         '''
         Read this layer in flattened chunks along with the attribute table (if applicable)
         and pixel area to help with overlays and summaries.
@@ -372,18 +372,19 @@ class Layer:
                     columns=columns
                 ), on="value").fillna("")
 
-            if not self.is_lat_lon:
-                _, pixel_size, *_ = self.info["geoTransform"]
-                pixel_size_m2 = float(pixel_size) ** 2
-                raster_data["area"] = pixel_size_m2 / one_hectare
-            else:
-                if not area_band:
-                    area_raster_path = self.get_area_raster()
-                    area_raster = gdal.Open(area_raster_path)
-                    area_band = area_raster.GetRasterBand(1)
+            if include_area:
+                if not self.is_lat_lon:
+                    _, pixel_size, *_ = self.info["geoTransform"]
+                    pixel_size_m2 = float(pixel_size) ** 2
+                    raster_data["area"] = pixel_size_m2 / one_hectare
+                else:
+                    if not area_band:
+                        area_raster_path = self.get_area_raster()
+                        area_raster = gdal.Open(area_raster_path)
+                        area_band = area_raster.GetRasterBand(1)
                 
-                area_data = DataFrame(area_band.ReadAsArray(*chunk).flatten(), columns=["area"])
-                raster_data = raster_data.join(area_data)
+                    area_data = DataFrame(area_band.ReadAsArray(*chunk).flatten(), columns=["area"])
+                    raster_data = raster_data.join(area_data)
     
             yield chunk, raster_data
     
@@ -487,22 +488,38 @@ class Layer:
         gdal.SetCacheMax(gdal_memory_limit)
         logging.debug(f"Reclassifying {self._path}")
 
-        output_path = TempFileManager.mktmp(suffix=".tif")
-        inverse_new_interpretation = {v: k for k, v in new_interpretation.items()}
+        if isinstance(next(iter(new_interpretation.values())), dict):
+            reclass_keys = list(next(iter(new_interpretation.values())).keys())
+            reclass_data = {c: [] for c in reclass_keys}
+            reclass_data["reclass_value"] = []
+            for reclass_value, reclass_interpretation in new_interpretation.items():
+                reclass_data["reclass_value"].append(reclass_value)
+                for c in reclass_keys:
+                    reclass_data[c].append(reclass_interpretation[c])
 
-        px_calcs = (
-            f"((A == {original_px}) * {inverse_new_interpretation.get(original_interp, nodata_value)})"
-            for original_px, original_interp in self._interpretation.items()
-        )
+            reclass_lookup = DataFrame(reclass_data).set_index(reclass_keys)
+        else:
+            reclass_keys = ["interpretation"]
+            reclass_lookup = DataFrame(
+                new_interpretation.keys(), new_interpretation.values(), columns=["reclass_value"]
+            )
 
-        calc = "+".join((
-            f"((A == {orig_ndv}) * {nodata_value})",
-            f"(isin(A, {list(new_interpretation.keys())}, invert=True) * {nodata_value})",
-            *px_calcs
-        ))
+        output_ndv = nodata_value if nodata_value is not None else orig_ndv
+        output_path = self.blank_copy(nodata_value=output_ndv)
+        output_layer = gdal.Open(str(output_path), gdal.GA_Update)
+        output_band = output_layer.GetRasterBand(1)
+        for i, (chunk, chunk_data) in enumerate(self.read(include_area=False), 1):
+            logging.debug(f"  chunk {i}")
+            reclass_chunk_data = chunk_data.join(reclass_lookup, on=reclass_keys).fillna(output_ndv)            
+            x_px_start, y_px_start, x_size, y_size = chunk
+            output_band.WriteArray(
+                reclass_chunk_data["reclass_value"].values.reshape(y_size, x_size),
+                x_px_start, y_px_start
+            )
 
-        Calc(calc, output_path, nodata_value, quiet=True, creation_options=gdal_creation_options,
-             overwrite=True, hideNoData=False, A=self._path)
+        output_band.FlushCache()
+        output_band = None
+        output_layer = None
 
         reclassified_layer = Layer(output_path, self._year, new_interpretation, self._units, cache=self._cache)
 
