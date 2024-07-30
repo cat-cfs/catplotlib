@@ -281,10 +281,10 @@ class QueryRunner:
 
                 # Add any new columns to the existing table, if applicable.
                 if new_table_name in original_md:
-                    original_table_columns = [c.name for c in original_md.tables[new_table_name].columns]
+                    original_table_columns = [c.name.lower() for c in original_md.tables[new_table_name].columns]
                     for col in table.columns:
-                        if col.name not in original_table_columns:
-                            to_conn.execute(f"ALTER TABLE {new_table_name} ADD COLUMN {col.name} {col.type}")
+                        if col.name.lower() not in original_table_columns:
+                            to_conn.execute(text(f"ALTER TABLE {new_table_name} ADD COLUMN {col.name} {col.type}"))
             
             origin_data = {source_col: source_name} if include_source_column else None
             self._batch_insert(to_db, output_table, from_conn.execute(select(table)),
