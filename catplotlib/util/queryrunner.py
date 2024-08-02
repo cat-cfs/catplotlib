@@ -225,13 +225,16 @@ class QueryRunner:
                             input_conn, output_db, tables, True,
                             {source_col_name: label} if source_col_name else None)
 
-    def copy_tables(self, from_conn, to_db, tables, append=False, include_source_column=None, constraints=False):
+    def copy_tables(
+        self, from_conn, to_db, tables, append=False, include_source_column=None,
+        constraints=False, views=False
+    ):
         print(f"Copying tables: {', '.join(tables)}")
         if not isinstance(tables, dict):
             tables = dict(zip(tables, tables))
 
         md = MetaData()
-        md.reflect(bind=from_conn, only=lambda table_name, _: table_name in tables.keys())
+        md.reflect(bind=from_conn, only=lambda table_name, _: table_name in tables.keys(), views=views)
         
         with to_db.begin() as to_conn:
             original_md = MetaData()
@@ -290,11 +293,16 @@ class QueryRunner:
             self._batch_insert(to_db, output_table, from_conn.execute(select(table)),
                                lambda row: {k: v for k, v in row._mapping.items()}, origin_data)
 
-    def import_tables(self, db_path, source_db, tables, append=False, include_source_column=None, constraints=False):
+    def import_tables(
+        self, db_path, source_db, tables, append=False, include_source_column=None,
+        constraints=False, views=False
+    ):
         with self.connect(source_db) as working_db, \
         self.connect(db_path) as output_db:
             with working_db.begin() as working_conn:
-                self.copy_tables(working_conn, output_db, tables, append, include_source_column)
+                self.copy_tables(
+                    working_conn, output_db, tables, append, include_source_column,
+                    constraints, views)
 
     def import_xls(self, db_path, xls_path, table_name=None, append=False, cell_range=None, **kwargs):
         table_name = table_name or kwargs.get("sheet_name", "xls_import")

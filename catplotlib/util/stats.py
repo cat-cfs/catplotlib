@@ -69,6 +69,7 @@ def calculate_stack_stat(
 
     logging.info("  normalizing layers to same extent and resolution")
     normalized_input_layers = _normalize_layers(input_layers, cache)
+    normalized_layer_lookup = dict(zip(normalized_input_layers, input_layers))
     n_layers = len(normalized_input_layers)
     logging.info(f"  processing {n_layers} normalized layers")
 
@@ -87,9 +88,16 @@ def calculate_stack_stat(
         for j, layer_path in enumerate(normalized_input_layers, 1):
             logging.info(f"    layer {j} / {n_layers}")
             ds = gdal.Open(str(layer_path))
-            band = ds.GetRasterBand(1)
-            chunk_data = band.ReadAsArray(*chunk).astype(float)
-            chunk_data[chunk_data == band.GetNoDataValue()] = np.nan
+            if ds is not None:
+                band = ds.GetRasterBand(1)
+                chunk_data = band.ReadAsArray(*chunk).astype(float)
+                chunk_data[chunk_data == band.GetNoDataValue()] = np.nan
+            else:
+                chunk_data = np.full((chunk[3], chunk[2]), np.nan)
+                logging.info(
+                    f"      skipping empty layer {Path(layer_path).name} "
+                    f"({normalized_layer_lookup[layer_path]})")
+
             all_chunk_data.append(chunk_data)
             
         numpy_args = numpy_args or []

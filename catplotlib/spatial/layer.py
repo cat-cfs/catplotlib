@@ -258,7 +258,7 @@ class Layer:
         
         return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
 
-    def aggregate(self, units=None, area_only=False):
+    def aggregate(self, units=None, area_only=False, band=1):
         '''
         Aggregates this layer's non-nodata pixels into either the sum (for a layer of absolute
         values), or the average per-hectare value (for a layer of per-hectare values). If 'units'
@@ -271,9 +271,6 @@ class Layer:
 
         Returns the sum or the average per-hectare value of the non-nodata pixels.
         '''
-        if self.is_multiband:
-            raise UnsupportedOperation("unsupported for multiband layers")
-
         gdal.SetCacheMax(gdal_memory_limit)
         current_per_ha, current_units_tc, current_units_name = self._units.value
         new_per_ha, new_units_tc, new_units_name = units.value if units else self._units.value
@@ -281,14 +278,14 @@ class Layer:
         one_hectare = 100 ** 2
 
         raster = gdal.Open(self._path)
-        band = raster.GetRasterBand(1)
+        raster_band = raster.GetRasterBand(band)
         nodata_value = self.nodata_value
         
         total_value = 0
         total_area = 0
         area_band = None
         for chunk in self._chunk():
-            raster_data = band.ReadAsArray(*chunk).astype("float")
+            raster_data = raster_band.ReadAsArray(*chunk).astype("float")
 
             # First need to convert pixel values to absolute (as opposed to per hectare), in the correct
             # units (tc/ktc/mtc), and determine the total area of non-nodata pixels.

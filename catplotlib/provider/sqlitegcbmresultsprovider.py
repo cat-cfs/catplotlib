@@ -37,15 +37,15 @@ class SqliteGcbmResultsProvider(ResultsProvider):
     @property
     def simulation_years(self):
         '''See GcbmResultsProvider.simulation_years.'''
-        min_year = 0
+        min_year = 9999
         max_year = 0
         for path in self._paths:
             conn = sqlite3.connect(path)
-            years = conn.execute("SELECT MIN(year), MAX(year) from v_age_indicators WHERE year > 0").fetchone()
+            years = conn.execute("SELECT MIN(year), MAX(year) from v_flux_indicators WHERE year > 0").fetchone()
             min_year = min(years[0], min_year)
             max_year = max(years[1], max_year)
 
-        return years
+        return min_year, max_year
 
     @property
     def simulation_area(self):
