@@ -20,8 +20,8 @@ def _find_layers(pattern, pattern_filter_fn=None):
     
     return input_layers
 
-def _normalize_layers(layer_paths, cache):
-    bounding_box = BoundingBox(str(layer_paths[0]), cache=cache)
+def _normalize_layers(layer_paths, cache, crop_to_data):
+    bounding_box = BoundingBox(str(layer_paths[0]), cache=cache, crop_to_data=crop_to_data)
     normalized_input_layers = []
     with Pool() as pool:
         tasks = []
@@ -38,7 +38,7 @@ def _normalize_layers(layer_paths, cache):
     return normalized_input_layers
 
 def calculate_stack_stat(
-    pattern, output_path, numpy_fn, *numpy_args, pattern_filter_fn=None, chunk_size=5000,
+    pattern, output_path, numpy_fn, *numpy_args, pattern_filter_fn=None, chunk_size=5000, crop_to_data=False,
     **numpy_kwargs
 ):
     '''
@@ -54,6 +54,8 @@ def calculate_stack_stat(
         found by the search pattern should be included or not; must be a function that
         takes a single arg, a file path, and returns True or False
     'chunk_size' -- the size of the chunks to process
+    'crop_to_data' -- crop extent to non-nodata pixels in bounding box (the first layer in the stack),
+        default: False
     'numpy_kwargs' -- keyword args to pass to the numpy function
     '''
     logging.info(f"Processing {pattern}...")
@@ -68,7 +70,7 @@ def calculate_stack_stat(
         return
 
     logging.info("  normalizing layers to same extent and resolution")
-    normalized_input_layers = _normalize_layers(input_layers, cache)
+    normalized_input_layers = _normalize_layers(input_layers, cache, crop_to_data)
     normalized_layer_lookup = dict(zip(normalized_input_layers, input_layers))
     n_layers = len(normalized_input_layers)
     logging.info(f"  processing {n_layers} normalized layers")

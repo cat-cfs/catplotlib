@@ -139,13 +139,7 @@ class DisturbanceLayerConfigurer:
                 for sublayer in Layer(
                     layer, interpretation=layer_attribute_table, units=Units.Blank,
                     simulation_start_year=simulation_start_year
-                ).unpack():
-                    if not (
-                        (sublayer.year >= min_year if min_year else True)
-                        and (sublayer.year <= max_year if max_year else True)
-                    ):
-                        continue
-
+                ).unpack(bands=list(range(min_year or 1000, max_year + 1 or 3000))):
                     layer_collection.append(sublayer)
 
         return layer_collection

@@ -15,14 +15,17 @@ class BoundingBox(Layer):
 
     Arguments:
     'path' -- path to a raster file to use as a bounding box.
+    'projection' -- projection to override the bounding box layer's with.
+    'crop_to_data' -- crop the bounding box extent to the non-nodata pixels (default: True).
     '''
 
-    def __init__(self, path, projection=None, **kwargs):
+    def __init__(self, path, projection=None, crop_to_data=True, **kwargs):
         super().__init__(path, 0, **kwargs)
         self._min_pixel_bounds = None
         self._min_geographic_bounds = None
         self._initialized = False
         self._projection = projection
+        self._crop_to_data = crop_to_data
     
     @property
     def min_pixel_bounds(self):
@@ -151,8 +154,14 @@ class BoundingBox(Layer):
         # Warp again to fix projection issues - sometimes will be flipped vertically
         # from the original.
         final_bbox_path = TempFileManager.mktmp(no_manual_cleanup=True, suffix=".tif")
-        gdal.Warp(final_bbox_path, bbox_path, creationOptions=gdal_creation_options,
-                  outputBounds=BoundingBox(bbox_path, cache=self._cache).min_geographic_bounds)
+        gdal.Warp(
+            final_bbox_path, bbox_path, creationOptions=gdal_creation_options,
+            outputBounds=(
+                BoundingBox(bbox_path, cache=self._cache).min_geographic_bounds
+                if self._crop_to_data
+                else None
+            )
+        )
 
         self._path = final_bbox_path
         self._min_geographic_bounds = None

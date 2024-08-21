@@ -36,6 +36,7 @@ def cli():
     parser.add_argument("numpy_fn", help="numpy function to apply")
     parser.add_argument("numpy_args", nargs="*", help="numpy positional args")
     parser.add_argument("--chunk_size", help="Chunk size to use when processing layers", default=5000)
+    parser.add_argument("--crop_to_data", action="store_true", default=False, help="Crop output to data extent")
     args, extras = parser.parse_known_args()
     
     numpy_kwargs = {}
@@ -52,7 +53,8 @@ def cli():
     numpy_fn = getattr(np, args.numpy_fn)
     calculate_stack_stat(
         args.pattern, args.output_path, numpy_fn, *numpy_args,
-        chunk_size=args.chunk_size, **(numpy_kwargs or {})
+        chunk_size=args.chunk_size, **(numpy_kwargs or {}),
+        crop_to_data=args.crop_to_data
     )
 
 if __name__ == "__main__":

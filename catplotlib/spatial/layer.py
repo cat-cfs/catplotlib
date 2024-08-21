@@ -729,7 +729,7 @@ class Layer:
 
         return output_path
 
-    def unpack(self, output_path=None):
+    def unpack(self, output_path=None, bands=None):
         '''
         If this is a multiband layer, unpacks this layer into separate single-band
         layers by year (or timestep, if start_year was not specified in the constructor).
@@ -737,6 +737,8 @@ class Layer:
         Arguments:
         'output_path' -- path to store the unpacked layers in, or omit to create
             them in a temporary directory that will be cleaned up on exit.
+        'bands' -- a list of bands to unpack; can be either band numbers or years if
+            simulation_start_year was specified in this layer's constructor.
         
         Returns a list of single-band layers by year or timestep.
         '''
@@ -746,9 +748,17 @@ class Layer:
         if output_path:
             Path(output_path).mkdir(parents=True, exist_ok=True)
         
+        if bands:
+            if self._simulation_start_year and all((band > 1000 for band in bands)):
+                # Bands specified as years
+                max_band = self._simulation_start_year + self.n_bands - 1
+                bands = [band - self._simulation_start_year + 1 for band in bands if band <= max_band]
+        else:
+            bands = range(1, self.n_bands + 1)
+
         with ThreadPoolExecutor(pool_workers) as pool:
             tasks = []
-            for band in range(1, self.n_bands + 1):
+            for band in bands:
                 tasks.append(pool.submit(self._extract_band, band, output_path))
             
             unpacked_layers = [task.result() for task in tasks]
