@@ -27,6 +27,8 @@ bounding_box_path = r"..\..\layers\tiled\bounding_box.tif"
 %providers
 
 providers = create_providers(provider_paths)
+
+%config
 ```
 
 # GCBM Results

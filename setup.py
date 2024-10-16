@@ -4,7 +4,7 @@ from glob import glob
 
 setup(
     name="catplotlib",
-    version="4.0.5",
+    version="4.0.7",
     description="catplotlib",
     long_description="catplotlib",
     url="",
@@ -31,6 +31,7 @@ setup(
         "matplotlib==3.5.2; python_version=='3.7'", "matplotlib; python_version>'3.7'", # cartopy < 0.21 requires matplotlib 3.5.2
         "cartopy==0.18.0; python_version=='3.7'", "cartopy; python_version>'3.7'",
         "pyproj==3.2.1; python_version=='3.7'", "pyproj; python_version>'3.7'",
+        "df2img==0.2.18"
     ],
     extras_require={},
     package_data={},
