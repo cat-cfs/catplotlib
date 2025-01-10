@@ -8,6 +8,7 @@ import psutil
 import pandas as pd
 import numpy as np
 import sqlalchemy as sql
+from pathlib import Path
 from contextlib import contextmanager
 from functools import partial
 from numbers import Number
@@ -209,7 +210,7 @@ class QueryRunner:
           output_path - the output database; will be deleted if it already exists
           tables - [optional] merge only the listed tables
         '''
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         if os.path.exists(output_path):
             os.remove(output_path)
         
@@ -290,8 +291,13 @@ class QueryRunner:
                             to_conn.execute(text(f"ALTER TABLE {new_table_name} ADD COLUMN {col.name} {col.type}"))
             
             origin_data = {source_col: source_name} if include_source_column else None
-            self._batch_insert(to_db, output_table, from_conn.execute(select(table)),
-                               lambda row: {k: v for k, v in row._mapping.items()}, origin_data)
+            if from_conn.engine.name == "sqlite" and to_db.conn.engine.name == "duckdb":
+                self._attach_insert_duckdb(from_conn, to_db, table, output_table, origin_data)
+            elif from_conn.engine.name == "sqlite" and to_db.conn.engine.name == "sqlite":
+                self._attach_insert(from_conn, to_db, table, output_table, origin_data)
+            else:
+                self._batch_insert(to_db, output_table, from_conn.execute(select(table)),
+                                   lambda row: {k: v for k, v in row._mapping.items()}, origin_data)
 
     def import_tables(
         self, db_path, source_db, tables, append=False, include_source_column=None,
@@ -365,6 +371,8 @@ class QueryRunner:
             schema = schema.lower()
         elif db_path.endswith(".db"):
             connection_url = f"sqlite:///{db_path}"
+        elif db_path.endswith(".duckdb"):
+            connection_url = f"duckdb:///{db_path}"
         elif db_path.endswith(".accdb") or db_path.endswith(".mdb"):
             if not os.path.exists(db_path):
                 self._create_mdb(db_path)
@@ -445,6 +453,39 @@ class QueryRunner:
         if batch:
             print(f"    {i}")
             db.insert(table, batch)
+
+    def _attach_insert_duckdb(self, from_conn, to_db, from_table, to_table, origin_data=None):
+        insert_sql = f"INSERT INTO {to_table.name} BY NAME (SELECT * FROM other.{from_table.name})"
+        if origin_data:
+            origin_col, origin_name = next(iter(origin_data.items()))
+            insert_sql = (
+                f"INSERT INTO {to_table.name} BY NAME "
+                f"(SELECT *, '{origin_name}' AS {origin_col} FROM other.{from_table.name})"
+            )
+        
+        with to_db.begin() as to_conn:
+            source_db_path = str(from_conn.engine.url).split("///")[1]
+            to_conn.execute(text(f"ATTACH '{source_db_path}' AS other (TYPE SQLITE)"))
+            to_conn.execute(text(insert_sql))
+            to_conn.execute(text("DETACH other"))
+
+    def _attach_insert(self, from_conn, to_db, from_table, to_table, origin_data=None):
+        cols = ",".join((c.name for c in from_table.columns))
+        insert_sql = f"INSERT INTO {to_table.name} ({cols}) SELECT {cols} FROM other.{from_table.name}"
+        if origin_data:
+            origin_col, origin_name = next(iter(origin_data.items()))
+            insert_sql = (
+                f"INSERT INTO {to_table.name} ({cols}, {origin_col}) "
+                f"SELECT {cols}, '{origin_name}' AS {origin_col} FROM other.{from_table.name}"
+            )
+        
+        with to_db.begin() as to_conn:
+            source_db_path = str(from_conn.engine.url).split("///")[1]
+            to_conn.execute(text(f"ATTACH '{source_db_path}' AS other"))
+            to_conn.execute(text(insert_sql))
+
+        with to_db.begin() as to_conn:
+            to_conn.execute(text("DETACH other"))
 
     def _replace_df_cols(self, df, new_cols):
         if isinstance(new_cols, dict):
