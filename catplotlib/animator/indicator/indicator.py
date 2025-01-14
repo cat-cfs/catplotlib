@@ -122,7 +122,7 @@ class Indicator:
         plot = BasicResultsPlot(self._short_title, self._results_provider, self._indicator, self._graph_units)
         logging.info(f"{self.title}: rendering graph frames")
 
-        return plot.render(start_year=start_year, end_year=end_year, **self._provider_filter, **kwargs)
+        return plot.render(start_year=start_year, end_year=end_year, provider_filter=self._provider_filter, **kwargs)
        
     def _find_layers(self):
         pattern = self._layer_pattern

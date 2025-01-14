@@ -18,7 +18,7 @@ class BasicResultsPlot(ResultsPlot):
         self._indicator = indicator
         self._units = units
 
-    def render(self, start_year=None, end_year=None, **kwargs):
+    def render(self, start_year=None, end_year=None, provider_filter=None, **kwargs):
         '''
         Renders the configured plot into a graph.
 
@@ -27,6 +27,7 @@ class BasicResultsPlot(ResultsPlot):
 
         Returns a list of Frames, one for each year of output.
         '''
+        indicator = (provider_filter or {}).get("indicator", self._indicator)
         indicator_data = self._provider.get_annual_result(
             self._indicator, start_year, end_year, self._units, **kwargs)
         

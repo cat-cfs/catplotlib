@@ -795,8 +795,8 @@ class Layer:
         x_chunk_ends = [x - 1 for x in (x_chunk_starts[1:] + [width])]
         x_chunks = list(zip(x_chunk_starts, x_chunk_ends))
 
-        for i, (y_px_start, y_px_end) in enumerate(y_chunks):
-            for j, (x_px_start, x_px_end) in enumerate(x_chunks):
+        for y_px_start, y_px_end in y_chunks:
+            for x_px_start, x_px_end in x_chunks:
                 y_size = y_px_end - y_px_start + 1
                 x_size = x_px_end - x_px_start + 1
 
