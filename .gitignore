@@ -5,3 +5,4 @@ dist
 gcbmanimation.egg-info
 /.vs/catplotlib/FileContentIndex/*.vsidx
 /.vs/catplotlib/FileContentIndex/*.lock
+.vscode

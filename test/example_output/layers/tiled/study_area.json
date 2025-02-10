@@ -1,0 +1,85 @@
+{
+    "pixel_size": 0.00025,
+    "tile_size": 1.0,
+    "block_size": 0.1,
+    "tiles": [
+        {
+            "x": -106,
+            "y": 55,
+            "index": 12674
+        }
+    ],
+    "layers": [
+        {
+            "name": "initial_age",
+            "type": "VectorLayer"
+        },
+        {
+            "name": "mean_annual_temperature",
+            "type": "VectorLayer"
+        },
+        {
+            "name": "Classifier1",
+            "type": "VectorLayer",
+            "tags": [
+                "classifier"
+            ]
+        },
+        {
+            "name": "Classifier2",
+            "type": "VectorLayer",
+            "tags": [
+                "classifier"
+            ]
+        },
+        {
+            "name": "disturbances_0",
+            "type": "DisturbanceLayer",
+            "tags": [
+                "disturbance"
+            ]
+        },
+        {
+            "name": "disturbances_1",
+            "type": "DisturbanceLayer",
+            "tags": [
+                "disturbance"
+            ]
+        },
+        {
+            "name": "disturbances_2",
+            "type": "DisturbanceLayer",
+            "tags": [
+                "disturbance"
+            ]
+        },
+        {
+            "name": "disturbances_3",
+            "type": "DisturbanceLayer",
+            "tags": [
+                "disturbance"
+            ]
+        },
+        {
+            "name": "disturbances_4",
+            "type": "DisturbanceLayer",
+            "tags": [
+                "disturbance"
+            ]
+        },
+        {
+            "name": "disturbances_5",
+            "type": "DisturbanceLayer",
+            "tags": [
+                "disturbance"
+            ]
+        },
+        {
+            "name": "disturbances_6",
+            "type": "DisturbanceLayer",
+            "tags": [
+                "disturbance"
+            ]
+        }
+    ]
+}
