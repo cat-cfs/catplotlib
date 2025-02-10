@@ -1,7 +1,6 @@
 import numpy as np
 from multiprocessing import Pool
 from catplotlib.util import gdal
-from mojadata.util.gdal_calc import Calc
 from mojadata.util.gdalhelper import GDALHelper
 from catplotlib.spatial.layer import Layer
 from catplotlib.spatial.layercollection import LayerCollection

@@ -1,11 +1,8 @@
 import unittest
-import os 
-import shutil
 from catplotlib.spatial.layer import Layer, BlendMode
 from catplotlib.spatial.layercollection import LayerCollection
 from catplotlib.spatial.boundingbox import BoundingBox
 import rasterio
-import numpy.testing
 
 class BoundingBoxTest(unittest.TestCase):
     

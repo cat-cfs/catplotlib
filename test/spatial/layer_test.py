@@ -1,6 +1,5 @@
 import unittest
 import os 
-import shutil
 from catplotlib.spatial.layer import Layer, BlendMode
 from catplotlib.provider.units import Units
 import rasterio
@@ -78,7 +77,5 @@ class LayerTest(unittest.TestCase):
 
         actual = self.get_array(blended_layer.path)
         expected = self.get_array(r'test\example_output\blend\2010_2014.tif')
-        
-        shutil.copy(blended_layer.path, 'test.tif')
-        
+                
         numpy.testing.assert_almost_equal(actual, expected, 4)

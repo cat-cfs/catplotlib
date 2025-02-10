@@ -9,10 +9,8 @@ from io import UnsupportedOperation
 from pathlib import Path
 from pandas import DataFrame
 from enum import Enum
-from string import ascii_uppercase
 from concurrent.futures import ThreadPoolExecutor
 from catplotlib.util import gdal
-from mojadata.util.gdal_calc import Calc
 from mojadata.util.gdalhelper import GDALHelper
 from geopy.distance import distance
 from catplotlib.util.config import pool_workers
@@ -21,7 +19,6 @@ from catplotlib.util.config import gdal_memory_limit
 from catplotlib.util.tempfile import TempFileManager
 from catplotlib.spatial.display.frame import Frame
 from catplotlib.provider.units import Units
-import functools
 from catplotlib.util.cache import get_cache
 
 class BlendMode(Enum):
