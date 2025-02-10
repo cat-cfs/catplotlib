@@ -2,6 +2,7 @@ import numpy as np
 from multiprocessing import Pool
 from catplotlib.util import gdal
 from mojadata.util.gdal_calc import Calc
+from mojadata.util.gdalhelper import GDALHelper
 from catplotlib.spatial.layer import Layer
 from catplotlib.spatial.layercollection import LayerCollection
 from catplotlib.util.config import gdal_creation_options
@@ -129,10 +130,9 @@ class BoundingBox(Layer):
             return Layer(tmp_path, layer.year, layer.interpretation, layer.units, self._cache)
 
         # Clip to bounding box nodata mask.
-        calc = "A * (B != {0}) + ((B == {0}) * {1})".format(self.nodata_value, layer.nodata_value)
+        calc_fn = lambda A: A[0] * (A[1] != self.nodata_value + ((A[1] == self.nodata_value) * layer.nodata_value))
         output_path = TempFileManager.mktmp(suffix=".tif")
-        Calc(calc, output_path, layer.nodata_value, quiet=True, creation_options=gdal_creation_options,
-             overwrite=True, A=tmp_path, B=self.path)
+        GDALHelper.calc([tmp_path, self.path], output_path, calc_fn )
 
         cropped_layer = Layer(output_path, layer.year, layer.interpretation, layer.units, self._cache)
 
