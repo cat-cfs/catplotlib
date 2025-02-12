@@ -9,10 +9,8 @@ from io import UnsupportedOperation
 from pathlib import Path
 from pandas import DataFrame
 from enum import Enum
-from string import ascii_uppercase
 from concurrent.futures import ThreadPoolExecutor
 from catplotlib.util import gdal
-from mojadata.util.gdal_calc import Calc
 from mojadata.util.gdalhelper import GDALHelper
 from geopy.distance import distance
 from catplotlib.util.config import pool_workers
@@ -25,8 +23,8 @@ from catplotlib.util.cache import get_cache
 
 class BlendMode(Enum):
     
-    Add      = "+"
-    Subtract = "-"
+    Add      = lambda a, fn1, fn2: (fn1(a[0]) + fn2(a[1:]))
+    Subtract = lambda a, fn1, fn2: (- fn1(a[0]) + fn2(a[1:]))
 
 
 class Layer:
@@ -226,35 +224,40 @@ class Layer:
         nodata_value = self.nodata_value
         simple_conversion_calc = None
         if current_per_ha == new_per_ha:
-            simple_conversion_calc = " ".join((
-                f"(A.astype(numpy.float64) * {unit_conversion})",
-                f"* (A != {nodata_value})",
-                f"+ ((A == {nodata_value}) * {nodata_value})"))
+            simple_conversion_calc = (
+                lambda A: 
+                    A.astype(np.float64) * unit_conversion
+                    * (A != nodata_value)
+                    + ((A == nodata_value) * nodata_value)
+                                      )
+            
         elif not self.is_lat_lon:
-            per_ha_conversion_op = "*" if current_per_ha else "/"
+            per_ha_conversion_op = 1 if current_per_ha else -1
             _, pixel_size, *_ = self.info["geoTransform"]
             pixel_size_m2 = float(pixel_size) ** 2
             per_ha_modifier = pixel_size_m2 / one_hectare if current_per_ha != new_per_ha else 1
-            simple_conversion_calc = " ".join((
-                f"(A.astype(numpy.float64) * {unit_conversion} {per_ha_conversion_op} {per_ha_modifier})",
-                f"* (A != {nodata_value})",
-                f"+ ((A == {nodata_value}) * {nodata_value})"))
+            simple_conversion_calc = (
+                lambda A: 
+                    (A.astype(np.float64) * unit_conversion * per_ha_modifier**per_ha_conversion_op)
+                    * (A != nodata_value)
+                    + ((A == nodata_value) * nodata_value)
+                                      )
 
         if simple_conversion_calc:
-            Calc(simple_conversion_calc, output_path, nodata_value, quiet=True,
-                 creation_options=gdal_creation_options, overwrite=True, A=self.path)
+            GDALHelper.calc(self.path, output_path, simple_conversion_calc)
 
             return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
 
         area_raster_path = self.get_area_raster()
-        per_ha_conversion_op = "*" if current_per_ha else "/"
-        calc = " ".join((
-            f"(A.astype(numpy.float64) * {unit_conversion} {per_ha_conversion_op} B)",
-            f"* (A != {nodata_value})",
-            f"+ ((A == {nodata_value}) * {nodata_value})"))
-
-        Calc(calc, output_path, nodata_value, quiet=True, creation_options=gdal_creation_options,
-             overwrite=True, A=self.path, B=area_raster_path)
+        per_ha_conversion_op = 1 if current_per_ha else -1
+        calc_fn = (
+            lambda A:
+                (A[0].astype(np.float64) * unit_conversion * A[1]**per_ha_conversion_op)
+                * (A[0] != nodata_value)
+                + ((A[0] == nodata_value) * nodata_value) 
+        )
+                
+        GDALHelper.calc([self.path, area_raster_path], output_path, calc_fn)
         
         return Layer(output_path, self._year, self._interpretation, units, cache=self._cache)
 
@@ -576,6 +579,32 @@ class Layer:
                                   simulation_start_year=self._simulation_start_year)
 
         return reprojected_layer
+    
+    def _build_blend_function(self, layers):    
+        no_data = self.nodata_value
+        no_data_next = layers[0].nodata_value
+        return lambda A: A[0] * (A[0] != no_data) + self._build_blend_function_helper(layers, no_data_next)(A[1:])
+    
+    def _build_blend_function_helper(self, layers, no_data):
+        if not layers:
+            return lambda A: 0
+        else:
+            no_data_next = layers[0].nodata_value
+            return lambda A: layers[1](A, lambda layer: layer * (layer != no_data), 
+                                       self._build_blend_function_helper(layers[2:], no_data_next))
+        
+    def _build_no_data_layer(self, layers):
+        no_data = self.nodata_value
+        no_data_next = layers[0].nodata_value
+        return lambda A: no_data * ((A[0] == no_data) * self._build_no_data_helper(layers, no_data_next)(A[1:])) 
+    
+    def _build_no_data_helper(self, layers, no_data):
+        if not layers:
+            return lambda A: 1
+        else:
+            no_data_next = layers[0].nodata_value
+            return lambda A: (A[0] == no_data) * (self._build_no_data_helper(layers[2:], no_data_next)(A[1:]))
+        
 
     def blend(self, *layers):
         '''
@@ -588,34 +617,15 @@ class Layer:
         if self.is_multiband:
             raise UnsupportedOperation("unsupported for multiband layers")
 
-        nodata_value = self.nodata_value
-        blend_layers = {
-            ascii_uppercase[i]: (layer.convert_units(self._units), blend_mode)
-            for i, (layer, blend_mode) in enumerate(zip(layers[::2], layers[1::2]), 1)
-        }
-
-        calc = f"(A * (A != {nodata_value}) "
-        calc += " ".join((
-            f"{blend_mode.value} ({layer_key} * ({layer_key} != {layer.nodata_value}))"
-            for layer_key, (layer, blend_mode) in blend_layers.items()))
-
-        calc += f") + (((A == {nodata_value}) * "
-        calc += " * ".join((
-            f"({layer_key} == {layer.nodata_value})"
-            for layer_key, (layer, blend_mode) in blend_layers.items()))
-
-        calc += f") * {nodata_value})"
+        blend_fn = self._build_blend_function(layers) 
+        no_data_fn = self._build_no_data_layer(layers)
         
-        calc_args = {
-            layer_key: layer.path
-            for layer_key, (layer, blend_mode) in blend_layers.items()
-        }
-
-        logging.debug(f"Blending {calc_args} using: {calc}")
+        calc_fn = lambda A: blend_fn(A) +  no_data_fn(A)
+        
         output_path = TempFileManager.mktmp(suffix=".tif")
         gdal.SetCacheMax(gdal_memory_limit)
-        Calc(calc, output_path, nodata_value, quiet=True, creation_options=gdal_creation_options,
-             overwrite=True, hideNoData=True, A=self.path, **calc_args)
+        
+        GDALHelper.calc([self.path] + [layer.path for layer in layers[::2]], output_path, calc_fn=calc_fn)
 
         return Layer(output_path, self._year, self._interpretation, self._units, cache=self._cache)
 
