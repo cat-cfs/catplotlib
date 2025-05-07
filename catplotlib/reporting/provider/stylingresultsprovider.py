@@ -1,5 +1,5 @@
 from catplotlib.provider.resultsprovider import ResultsProvider
-from catplotlib.provider.sqlitegcbmresultsprovider import SqliteGcbmResultsProvider
+from catplotlib.provider.resultsproviderfactory import ResultsProviderFactory
 from catplotlib.provider.units import Units
 from catplotlib.reporting.style.stylemanager import StyleManager
 
@@ -20,7 +20,7 @@ class StylingResultsProvider(ResultsProvider):
         self._style_manager = style_manager or StyleManager()
 
         if not provider:
-            provider = SqliteGcbmResultsProvider(path, *args, **kwargs)
+            provider = ResultsProviderFactory().get_results_provider(path, *args, **kwargs)
 
         self._provider = provider
 
