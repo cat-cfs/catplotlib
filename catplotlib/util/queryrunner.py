@@ -141,7 +141,8 @@ class QueryRunner:
         np.float64: sql.Double,
         np.int64  : sql.Integer,
         np.object_: sql.String,
-        np.str_   : sql.String
+        np.str_   : sql.String,
+        COUNTER   : sql.Integer
     }
 
     def __init__(self, config=None):
@@ -414,6 +415,9 @@ class QueryRunner:
             table_names = (t for t in table_names if pattern.lower() in t.lower())
         
         return set(table_names)
+    
+    def get_column_names(self, conn, table_name):
+        return [c["name"] for c in inspect(conn).get_columns(table_name)]
 
     def _create_mdb(self, path, overwrite=True):
         '''
