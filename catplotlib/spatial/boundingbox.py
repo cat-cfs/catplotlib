@@ -131,7 +131,7 @@ class BoundingBox(Layer):
         # Clip to bounding box nodata mask.
         calc_fn = lambda A: A[0] * (A[1] != self.nodata_value + ((A[1] == self.nodata_value) * layer.nodata_value))
         output_path = TempFileManager.mktmp(suffix=".tif")
-        GDALHelper.calc([tmp_path, self.path], output_path, calc_fn )
+        GDALHelper.calc([tmp_path, self.path], output_path, calc_fn)
 
         cropped_layer = Layer(output_path, layer.year, layer.interpretation, layer.units, self._cache)
 

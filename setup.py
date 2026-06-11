@@ -25,7 +25,7 @@ setup(
         "numpy", "seaborn", "imageio", "imageio-ffmpeg",
         "pillow", "geopy", "utm", "jupyter-book", "sphinxcontrib-bibtex",
         "aenum", "pyepsg", "pyppeteer", "plotly", 'duckdb',
-        "pysal<=1.15.0; python_version=='3.7'", "pysal; python_version>'3.7'",
+        #"pysal<=1.15.0; python_version=='3.7'", "pysal; python_version>'3.7'",
         "mojadata>=4.0.6",
         "shapely>=1.8.1, <=1.8.2", # cartopy (any ver) requires this version of shapely
         "matplotlib==3.5.2; python_version=='3.7'", "matplotlib; python_version>'3.7'", # cartopy < 0.21 requires matplotlib 3.5.2
